@@ -140,6 +140,33 @@
             border-color: #EC4899;
             color: #EC4899;
         }
+        .tree-legend .parent-item {
+            margin-bottom: 0.5rem;
+        }
+        .tree-legend .sub-list {
+            padding-left: 1.25rem;
+            margin-left: 0.5rem; /* Aligns with the color box */
+            border-left: 2px dotted #d1d5db; /* cool-gray-300 */
+        }
+        .tree-legend .sub-item {
+            position: relative;
+            padding-left: 1.5rem; /* Space for the connector */
+            margin-top: 0.25rem;
+        }
+        .tree-legend .sub-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.6em; /* Vertically center */
+            width: 1rem; /* Length of the horizontal line */
+            border-bottom: 2px dotted #d1d5db;
+        }
+        .delete-btn {
+            display: none; /* Hidden by default */
+        }
+        .is-editing .delete-btn {
+            display: inline-flex; /* Show when parent has .is-editing */
+        }
     </style>
 </head>
 <body class="text-gray-700">
@@ -224,7 +251,7 @@
                     </div>
                      <div class="k-card">
                         <h3 class="font-bold text-xl mb-4 text-center">สรุปรายจ่าย</h3>
-                         <div class="flex flex-col md:flex-row items-center gap-6"><div id="expense-doughnut-container" class="doughnut-chart-container flex-shrink-0"><canvas id="expenseDoughnutChart"></canvas></div><div id="expense-doughnut-legend" class="doughnut-legend w-full"></div></div>
+                         <div class="flex flex-col md:flex-row items-center gap-6"><div id="expense-doughnut-container" class="doughnut-chart-container flex-shrink-0"><canvas id="expenseDoughnutChart"></canvas></div><div id="expense-doughnut-legend" class="doughnut-legend tree-legend w-full"></div></div>
                     </div>
                 </div>
                 <div class="k-card">
@@ -421,6 +448,37 @@
                 });
             });
 
+            DOMElements.transactionListContainer.addEventListener('click', (e) => {
+                const editButton = e.target.closest('[data-action="toggle-edit"]');
+                const deleteButton = e.target.closest('.delete-btn');
+
+                if (editButton) {
+                    const dayGroup = editButton.closest('.day-group-container');
+                    dayGroup.classList.toggle('is-editing');
+                }
+
+                if(deleteButton) {
+                    const timestamp = deleteButton.dataset.timestamp;
+                    const amount = parseFloat(deleteButton.dataset.amount);
+                    const category = deleteButton.dataset.category;
+                    
+                    Swal.fire({
+                        title: 'คุณแน่ใจหรือไม่?',
+                        text: "คุณจะไม่สามารถย้อนกลับการกระทำนี้ได้!",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#3085d6',
+                        confirmButtonText: 'ใช่, ลบเลย!',
+                        cancelButtonText: 'ยกเลิก'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            handleDeleteTransaction(timestamp, amount, category);
+                        }
+                    });
+                }
+            });
+
             DOMElements.prevMonthBtn.addEventListener('click', () => updateDisplayMonth(-1));
             DOMElements.nextMonthBtn.addEventListener('click', () => updateDisplayMonth(1));
             
@@ -485,6 +543,28 @@
             } catch (error) {
                 console.error("Error saving settings to sheet:", error);
                 Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกการตั้งค่าได้', 'error');
+            }
+        }
+        
+        async function handleDeleteTransaction(timestamp, amount, category) {
+            Swal.fire({ title: 'กำลังลบรายการ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            try {
+                 const payload = {
+                    action: 'delete_transaction',
+                    timestamp: timestamp,
+                    amount: amount,
+                    category: category
+                };
+                const response = await fetch(APP_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', // Use no-cors for this type of simple request
+                    body: JSON.stringify(payload)
+                });
+                Swal.fire('ลบสำเร็จ!', 'รายการของคุณถูกลบแล้ว', 'success');
+                initializeApp(); // Refresh all data and UI
+            } catch (error) {
+                console.error("Error deleting transaction:", error);
+                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถลบรายการได้', 'error');
             }
         }
         
@@ -616,39 +696,85 @@
             const categories = type === 'รายรับ' ? state.incomeCategories : state.expenseCategories;
             for (const parent of categories) { if (parent.name === categoryName) return parent.name; if (parent.sub.includes(categoryName)) return parent.name; } return categoryName;
         }
+        
         function renderSingleDoughnutChart(type) {
             const currentYear = new Date().getFullYear();
             const transactions = state.allTransactions.filter(t => t.type === type && t.timestamp.getFullYear() === currentYear);
-            const summary = transactions.reduce((acc, t) => { const parentCat = findParentCategory(t.category, type); acc[parentCat] = (acc[parentCat] || 0) + t.amount; return acc; }, {});
-            const totalAmount = Object.values(summary).reduce((sum, val) => sum + val, 0);
-            const labels = Object.keys(summary), data = Object.values(summary);
-
+            const summaryByParent = transactions.reduce((acc, t) => { const parentCat = findParentCategory(t.category, type); acc[parentCat] = (acc[parentCat] || 0) + t.amount; return acc; }, {});
+            
             const isIncome = type === 'รายรับ';
             const chartId = isIncome ? 'incomeDoughnut' : 'expenseDoughnut';
+            const legendEl = isIncome ? DOMElements.incomeDoughnutLegend : DOMElements.expenseDoughnutLegend;
             const colors = isIncome ? INCOME_CHART_COLORS : EXPENSE_CHART_COLORS;
             const centerTextColor = isIncome ? '#208173' : '#DC2626';
-            const canvas = document.getElementById(`${chartId}Chart`), legendEl = isIncome ? DOMElements.incomeDoughnutLegend : DOMElements.expenseDoughnutLegend;
-            
-            destroyChart(chartId); if (!canvas) return;
+
+            const labels = Object.keys(summaryByParent);
+            const data = Object.values(summaryByParent);
+            const totalAmount = data.reduce((sum, val) => sum + val, 0);
+
+            destroyChart(chartId);
+            const canvas = document.getElementById(`${chartId}Chart`);
+            if (!canvas) return;
             
             state.charts[chartId] = new Chart(canvas.getContext('2d'), {
-                type: 'doughnut', data: { labels: labels, datasets: [{ data: data, backgroundColor: labels.map((_, i) => colors[i % colors.length]), borderWidth: 0, }] },
+                type: 'doughnut',
+                data: { labels, datasets: [{ data, backgroundColor: labels.map((_, i) => colors[i % colors.length]), borderWidth: 0 }] },
                 options: {
                     responsive: true, maintainAspectRatio: false, cutout: '60%',
                     plugins: {
                         legend: { display: false },
-                        tooltip: { callbacks: { label: (c) => `${c.label||''}: ${formatCurrency(c.raw||0)} (${totalAmount>0?((c.raw/totalAmount)*100).toFixed(1):0}%)` } },
+                        tooltip: { callbacks: { label: (c) => `${c.label||''}: ${formatCurrency(c.raw||0)} (${totalAmount > 0 ? ((c.raw/totalAmount)*100).toFixed(1) : 0}%)` } },
                         datalabels: { display: false },
-                        centerText: {
-                            text: totalAmount.toLocaleString('th-TH', {maximumFractionDigits: 0}),
-                            subtext: `รวม${type}`,
-                            color: centerTextColor
-                        }
+                        centerText: { text: totalAmount.toLocaleString('th-TH', { maximumFractionDigits: 0 }), subtext: `รวม${type}`, color: centerTextColor }
                     }
                 }
             });
+            
             legendEl.innerHTML = '';
-            labels.forEach((label, i) => { const p = totalAmount > 0 ? ((data[i] / totalAmount) * 100).toFixed(1) : 0; const li = document.createElement('li'); li.innerHTML = `<div class="legend-color-box" style="background-color: ${colors[i % colors.length]}"></div><span class="flex-grow">${label}</span><span class="font-medium">${p}%</span>`; legendEl.appendChild(li); });
+            if(isIncome) {
+                 labels.forEach((label, i) => { const p = totalAmount > 0 ? ((data[i] / totalAmount) * 100).toFixed(1) : 0; const li = document.createElement('li'); li.innerHTML = `<div class="legend-color-box" style="background-color: ${colors[i % colors.length]}"></div><span class="flex-grow">${label}</span><span class="font-medium">${p}%</span>`; legendEl.appendChild(li); });
+            } else {
+                renderExpenseTreeLegend(legendEl, transactions, summaryByParent, totalAmount, colors);
+            }
+        }
+        
+        function renderExpenseTreeLegend(legendEl, transactions, summaryByParent, totalAmount, colors) {
+            legendEl.innerHTML = '';
+            let colorIndex = 0;
+            state.expenseCategories.forEach(parentCat => {
+                const parentTotal = summaryByParent[parentCat.name] || 0;
+                if (parentTotal === 0) return;
+
+                const parentColor = colors[colorIndex % colors.length];
+                colorIndex++;
+
+                const parentItem = document.createElement('div');
+                parentItem.className = 'parent-item';
+                
+                const parentPercent = totalAmount > 0 ? (parentTotal / totalAmount * 100).toFixed(1) : 0;
+                parentItem.innerHTML = `<div class="flex items-center"><div class="legend-color-box" style="background-color: ${parentColor}"></div><span class="flex-grow font-semibold">${parentCat.name}</span><span class="font-medium">${parentPercent}%</span></div>`;
+                
+                if (parentCat.sub && parentCat.sub.length > 0) {
+                    const subList = document.createElement('div');
+                    subList.className = 'sub-list mt-1';
+                    
+                    parentCat.sub.forEach(subCatName => {
+                        const subTotal = transactions.filter(t => t.category === subCatName).reduce((sum, t) => sum + t.amount, 0);
+                        if (subTotal > 0) {
+                            const subPercent = totalAmount > 0 ? (subTotal / totalAmount * 100).toFixed(1) : 0;
+                            const subItem = document.createElement('div');
+                            subItem.className = 'sub-item flex items-center';
+                            subItem.innerHTML = `<span class="flex-grow text-gray-600">${subCatName}</span><span class="text-gray-600">${subPercent}%</span>`;
+                            subList.appendChild(subItem);
+                        }
+                    });
+                    
+                    if (subList.children.length > 0) {
+                        parentItem.appendChild(subList);
+                    }
+                }
+                legendEl.appendChild(parentItem);
+            });
         }
         
         function renderDailyChart() {
@@ -968,12 +1094,23 @@
                 const date = new Date(dateKey);
                 
                 const dayGroupContainer = document.createElement('div');
+                dayGroupContainer.className = "day-group-container";
                 
                 const yearBE = date.getFullYear() + 543;
-                const dateHeader = document.createElement('div');
-                dateHeader.className = 'p-2 bg-gray-700 text-white rounded-t-lg text-center font-medium';
-                dateHeader.textContent = `${date.getDate()}/${date.getMonth() + 1}/${String(yearBE).slice(-2)} | ${THAI_DAYS_SHORT[date.getDay()]}`;
-                dayGroupContainer.appendChild(dateHeader);
+                const dateHeaderContainer = document.createElement('div');
+                dateHeaderContainer.className = 'flex justify-between items-center p-2 bg-gray-700 text-white rounded-t-lg font-medium';
+                
+                const dateHeaderText = document.createElement('span');
+                dateHeaderText.textContent = `${date.getDate()}/${date.getMonth() + 1}/${String(yearBE).slice(-2)} | ${THAI_DAYS_SHORT[date.getDay()]}`;
+                
+                const editButton = document.createElement('button');
+                editButton.className = 'p-1 rounded-full hover:bg-gray-600';
+                editButton.dataset.action = 'toggle-edit';
+                editButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`;
+
+                dateHeaderContainer.appendChild(dateHeaderText);
+                dateHeaderContainer.appendChild(editButton);
+                dayGroupContainer.appendChild(dateHeaderContainer);
 
                 const itemsContainer = document.createElement('div');
                 itemsContainer.className = 'border-2 border-dashed border-gray-300 rounded-b-lg p-4 space-y-3';
@@ -996,12 +1133,15 @@
                     }
                     
                     const rightCol = document.createElement('div');
-                    rightCol.className = 'text-right';
+                    rightCol.className = 'flex items-center space-x-4';
+
+                    const amountContainer = document.createElement('div');
+                    amountContainer.className = 'text-right';
                     
                     const thbText = document.createElement('p');
                     thbText.className = 'text-xs text-gray-400';
                     thbText.textContent = 'THB';
-                    rightCol.appendChild(thbText);
+                    amountContainer.appendChild(thbText);
 
                     const amountEl = document.createElement('p');
                     amountEl.className = 'font-bold text-lg';
@@ -1012,8 +1152,18 @@
                         amountEl.classList.add('text-red-700');
                         amountEl.textContent = `-${t.amount.toLocaleString('th-TH')}`;
                     }
-                    rightCol.appendChild(amountEl);
+                    amountContainer.appendChild(amountEl);
 
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'delete-btn p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-100 rounded-full';
+                    deleteBtn.dataset.timestamp = t.timestamp.toISOString();
+                    deleteBtn.dataset.amount = t.amount;
+                    deleteBtn.dataset.category = t.category;
+                    deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
+
+                    rightCol.appendChild(amountContainer);
+                    rightCol.appendChild(deleteBtn);
+                    
                     item.appendChild(leftCol);
                     item.appendChild(rightCol);
                     itemsContainer.appendChild(item);
