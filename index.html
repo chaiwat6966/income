@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -238,7 +239,7 @@
         const EXPENSE_CHART_COLORS = ['#FF6384', '#FF9F40', '#FFCD56', '#4BC0C0', '#36A2EB'];
         const THAI_MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 
-        // --- STATE MANAGEMENT ---
+        // --- STATE MANAGEMENT (with defaults) ---
         let state = {
             incomeCategories: [{ name: 'ยอดขายสินค้า', sub: ['หน้าร้าน', 'ออนไลน์'] },{ name: 'รายได้เสริม', sub: [] },{ name: 'อื่นๆ', sub: [] }],
             expenseCategories: [{ name: 'วัตถุดิบ', sub: ['ของสด', 'ของแห้ง'] },{ name: 'ค่าใช้จ่ายร้าน', sub: ['ค่าเช่า', 'ค่าน้ำ-ค่าไฟ', 'ค่าแก๊ส'] },{ name: 'ค่าจ้าง', sub: [] },{ name: 'อื่นๆ', sub: [] }],
@@ -312,13 +313,43 @@
             };
             Chart.register(centerTextPlugin, ChartDataLabels);
             
-            loadSettings(); // Load saved settings on start
-            initializeTabs();
-            initializeFlatpickr();
-            populateDropdowns();
-            setupEventListeners();
-            fetchDataAndRender();
+            initializeApp();
         });
+
+        async function initializeApp() {
+            Swal.fire({ title: 'กำลังโหลดข้อมูล...', text: 'กรุณารอสักครู่', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            
+            try {
+                const [transactions, settings] = await Promise.all([
+                    fetchTransactions(),
+                    fetchSettings()
+                ]);
+
+                state.allTransactions = transactions;
+
+                if (settings) {
+                    if (settings.incomeCategories) state.incomeCategories = settings.incomeCategories;
+                    if (settings.expenseCategories) state.expenseCategories = settings.expenseCategories;
+                    if (settings.accounts) state.accounts = settings.accounts;
+                }
+                
+                initializeTabs();
+                initializeFlatpickr();
+                populateDropdowns();
+                setupEventListeners();
+                renderDashboard();
+                
+                Swal.close();
+
+            } catch (error) {
+                 console.error('Initialization Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เกิดข้อผิดพลาดในการเริ่มต้นแอป',
+                    html: `ไม่สามารถโหลดข้อมูลเริ่มต้นได้<br><br><small class="text-left text-gray-500"><b>รายละเอียดทางเทคนิค:</b><br>${error.message}</small>`,
+                });
+            }
+        }
 
         function initializeTabs() {
             const incomeColor = '#F472B6', expenseColor = '#FBBF24';
@@ -365,55 +396,23 @@
             renderDailyChart();
         }
 
-        // --- SETTINGS PERSISTENCE ---
-        function saveSettings() {
-            try {
-                localStorage.setItem('expenseTracker_incomeCategories', JSON.stringify(state.incomeCategories));
-                localStorage.setItem('expenseTracker_expenseCategories', JSON.stringify(state.expenseCategories));
-                localStorage.setItem('expenseTracker_accounts', JSON.stringify(state.accounts));
-                console.log("Settings saved to localStorage.");
-            } catch (e) {
-                console.error("Failed to save settings to localStorage", e);
-            }
-        }
-
-        function loadSettings() {
-            try {
-                const savedIncome = localStorage.getItem('expenseTracker_incomeCategories');
-                const savedExpense = localStorage.getItem('expenseTracker_expenseCategories');
-                const savedAccounts = localStorage.getItem('expenseTracker_accounts');
-
-                if (savedIncome) state.incomeCategories = JSON.parse(savedIncome);
-                if (savedExpense) state.expenseCategories = JSON.parse(savedExpense);
-                if (savedAccounts) state.accounts = JSON.parse(savedAccounts);
-                console.log("Settings loaded from localStorage.");
-            } catch (e) {
-                console.error("Failed to load settings from localStorage", e);
-            }
-        }
-        // --- END SETTINGS PERSISTENCE ---
-
-        async function fetchDataAndRender() {
-            Swal.fire({ title: 'กำลังโหลดข้อมูล...', text: 'กรุณารอสักครู่', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+        // --- DATA FETCHING ---
+        async function fetchTransactions() {
             const url = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}&t=${new Date().getTime()}`;
-            try {
-                const response = await fetch(url);
-                if (!response.ok) { throw new Error(`Network response was not ok (status: ${response.status})`); }
-                const csvText = await response.text();
-                if (csvText.includes('<html')) { throw new Error('ได้รับไฟล์ HTML แทนที่จะเป็น CSV อาจเกิดจาก ID ชีตผิดหรือการตั้งค่าการแชร์ไม่ถูกต้อง'); }
-                state.allTransactions = parseCSV(csvText);
-                renderDashboard();
-                Swal.close();
-            } catch (error) {
-                console.error('Fetch Error:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'เกิดข้อผิดพลาดในการโหลดข้อมูล',
-                    html: `ไม่สามารถโหลดข้อมูลจาก Google Sheet ได้<br><br><small class="text-left text-gray-500"><b>ข้อเสนอแนะ:</b><br>1. ตรวจสอบว่าแชร์ชีตเป็น "ทุกคนที่มีลิงก์" แล้ว<br>2. ตรวจสอบ GOOGLE_SHEET_ID และ SHEET_NAME ในโค้ด<br>3. เปิด Console (กด F12) เพื่อดูข้อความ error เพิ่มเติม<br><br><b>รายละเอียดทางเทคนิค:</b><br>${error.message}</small>`,
-                });
-            }
+            const response = await fetch(url);
+            if (!response.ok) { throw new Error(`Network response was not ok (status: ${response.status})`); }
+            const csvText = await response.text();
+            if (csvText.includes('<html')) { throw new Error('ได้รับไฟล์ HTML แทนที่จะเป็น CSV อาจเกิดจาก ID ชีตผิดหรือการตั้งค่าการแชร์ไม่ถูกต้อง'); }
+            return parseCSV(csvText);
         }
-        
+
+        async function fetchSettings() {
+            const url = `${APP_SCRIPT_URL}?action=get_settings`;
+            const response = await fetch(url);
+            if (!response.ok) { throw new Error('ไม่สามารถโหลดข้อมูลการตั้งค่าได้'); }
+            return await response.json();
+        }
+
         function parseCSV(csvText) {
             if (!csvText || typeof csvText !== 'string') { return []; }
             const rows = csvText.trim().split('\n').slice(1);
@@ -445,7 +444,7 @@
                     Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', showConfirmButton: false, timer: 1500 });
                     form.reset(); initializeFlatpickr();
                     DOMElements.formSection.classList.add('hidden'); DOMElements.addTransactionBtn.classList.remove('hidden');
-                    fetchDataAndRender();
+                    initializeApp();
                 } else { Swal.fire('เกิดข้อผิดพลาด', `ไม่สามารถบันทึกข้อมูลได้: ${response.message}`, 'error'); }
                 delete window[callbackName]; document.body.removeChild(script);
             };
@@ -672,21 +671,44 @@
                 }
             });
         }
+
+        async function saveSettingsToSheet() {
+            Swal.fire({ title: 'กำลังบันทึกการตั้งค่า...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            try {
+                const payload = {
+                    incomeCategories: state.incomeCategories,
+                    expenseCategories: state.expenseCategories,
+                    accounts: state.accounts,
+                };
+                const response = await fetch(APP_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', // Important for cross-origin POST to Apps Script
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                Swal.fire('สำเร็จ', 'บันทึกการตั้งค่าเรียบร้อย', 'success');
+            } catch (error) {
+                console.error("Error saving settings to sheet:", error);
+                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกการตั้งค่าได้', 'error');
+            }
+        }
+
         async function manageCategories() {
             const { value: type } = await Swal.fire({ title: 'จัดการหมวดหมู่', input: 'radio', inputOptions: { 'รายรับ': 'รายรับ', 'รายจ่าย': 'รายจ่าย' }, inputValue: 'รายรับ', inputValidator: (v) => !v && 'กรุณาเลือกประเภท!' });
             if (type) {
                 const { value: action } = await Swal.fire({ title: `จัดการหมวดหมู่${type}`, input: 'select', inputOptions: { 'addParent': 'เพิ่มหมวดหมู่หลัก', 'addChild': 'เพิ่มหมวดหมู่ย่อย', 'delete': 'ลบหมวดหมู่' }, inputPlaceholder: 'เลือกการกระทำ', showCancelButton: true, });
                 if (!action) return;
                 const categories = type === 'รายรับ' ? state.incomeCategories : state.expenseCategories;
+                let changed = false;
                 if (action === 'addParent') {
                     const { value: name } = await Swal.fire({ title: `ชื่อหมวดหมู่หลักใหม่ (${type})`, input: 'text', inputValidator: v => !v && 'กรุณากรอกชื่อ!' });
-                    if (name) { categories.push({ name: name, sub: [] }); saveSettings(); Swal.fire('สำเร็จ', `เพิ่มหมวดหมู่ '${name}' แล้ว`, 'success'); populateDropdowns(); }
+                    if (name) { categories.push({ name: name, sub: [] }); changed = true; }
                 } else if (action === 'addChild') {
                     const inputOptions = categories.reduce((obj, cat) => { obj[cat.name] = cat.name; return obj; }, {});
                     const { value: parentName } = await Swal.fire({ title: 'เลือกหมวดหมู่หลัก', input: 'select', inputOptions });
                     if (parentName) {
                         const { value: childName } = await Swal.fire({ title: `ชื่อหมวดหมู่ย่อยสำหรับ '${parentName}'`, input: 'text', inputValidator: v => !v && 'กรุณากรอกชื่อ!' });
-                        if (childName) { const parent = categories.find(c => c.name === parentName); parent.sub.push(childName); saveSettings(); Swal.fire('สำเร็จ', `เพิ่มหมวดหมู่ย่อย '${childName}' แล้ว`, 'success'); populateDropdowns(); }
+                        if (childName) { const parent = categories.find(c => c.name === parentName); parent.sub.push(childName); changed = true; }
                     }
                 } else if (action === 'delete') {
                     const inputOptions = {}; categories.forEach(p => { inputOptions[p.name] = p.name + ' (หลัก)'; p.sub.forEach(c => inputOptions[c] = ` - ${c}`); });
@@ -694,9 +716,13 @@
                      if(nameToDelete) {
                         let parent = categories.find(p => p.name === nameToDelete);
                         if(parent) { state[type === 'รายรับ' ? 'incomeCategories' : 'expenseCategories'] = categories.filter(p => p.name !== nameToDelete); } else { categories.forEach(p => { p.sub = p.sub.filter(c => c !== nameToDelete); }); }
-                        saveSettings();
-                        Swal.fire('สำเร็จ', `ลบ '${nameToDelete}' แล้ว`, 'success'); populateDropdowns();
+                        changed = true;
                      }
+                }
+
+                if (changed) {
+                    populateDropdowns();
+                    await saveSettingsToSheet();
                 }
             }
         }
@@ -711,9 +737,8 @@
                 if (formValues.newAcc) { state.accounts.push(formValues.newAcc); changed = true; }
                 if (formValues.delAcc) { const i = state.accounts.indexOf(formValues.delAcc); if (i > -1) { state.accounts.splice(i, 1); changed = true; } }
                 if (changed) { 
-                    saveSettings();
                     populateDropdowns(); 
-                    Swal.fire('สำเร็จ', 'อัปเดตบัญชีเรียบร้อย', 'success'); 
+                    await saveSettingsToSheet();
                 }
             }
         }
