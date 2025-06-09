@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -46,6 +45,14 @@
             transition: all 0.3s ease;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
+        .filter-btn {
+            padding: 0.5rem 1.25rem;
+        }
+        .filter-btn.active {
+            background-color: #EC4899; /* Pink-500 */
+            color: white;
+            box-shadow: 0 4px 6px -1px rgb(236 72 153 / 0.3), 0 2px 4px -2px rgb(236 72 153 / 0.2);
+        }
         .k-input, .k-select {
             border-radius: 0.75rem;
             border: 1px solid #E5E7EB;
@@ -59,6 +66,10 @@
             border-color: #F472B6; /* Pink */
             box-shadow: 0 0 0 2px #FBCFE8;
         }
+        .swal2-popup .k-input, .swal2-popup .k-select {
+             background-color: #F9FAFB;
+        }
+
         .tab-button {
             padding: 0.5rem 1rem;
             border-radius: 9999px;
@@ -69,7 +80,7 @@
         .tab-button.active {
             color: white;
         }
-        #swal2-title, #swal2-html-container, .swal2-input, .swal2-select, .swal2-radio {
+        #swal2-title, #swal2-html-container, .swal2-input, .swal2-select, .swal2-radio, .swal2-confirm, .swal2-cancel {
             font-family: 'Kanit', sans-serif;
         }
         .chart-container {
@@ -125,6 +136,10 @@
             text-align: center;
             flex-grow: 1;
         }
+        .main-tab.active {
+            border-color: #EC4899;
+            color: #EC4899;
+        }
     </style>
 </head>
 <body class="text-gray-700">
@@ -137,7 +152,7 @@
         </button>
 
         <!-- Header Section -->
-        <header class="text-center mb-8">
+        <header class="text-center mb-4">
             <div class="inline-block bg-white p-4 rounded-full shadow-md mb-4">
                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-pink-400">
                     <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
@@ -146,81 +161,112 @@
             <h1 class="text-3xl font-bold text-gray-800">รายรับ-รายจ่าย</h1>
             <p class="text-lg text-gray-500">หน้าบ้านมินิมาร์ท</p>
             <p class="text-sm text-gray-400">by ชัยสกุลทรัพย์</p>
+            <p id="current-datetime-display" class="text-sm text-gray-400 mt-1"></p>
         </header>
 
-        <!-- Dashboard Summary -->
-        <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="k-card flex items-center space-x-4 bg-green-50 border border-green-200">
-                <div class="p-3 bg-green-100 rounded-full"><svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 6v2m0 8v2m-6-4h.01M18 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
-                <div><p class="text-sm text-green-600">รายรับรวม</p><p id="total-income" class="text-2xl font-bold text-green-700">0.00 .-</p></div>
-            </div>
-            <div class="k-card flex items-center space-x-4 bg-red-50 border border-red-200">
-                <div class="p-3 bg-red-100 rounded-full"><svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg></div>
-                <div><p class="text-sm text-red-600">รายจ่ายรวม</p><p id="total-expense" class="text-2xl font-bold text-red-700">0.00 .-</p></div>
-            </div>
-            <div class="k-card flex items-center space-x-4 bg-blue-50 border border-blue-200">
-                <div class="p-3 bg-blue-100 rounded-full"><svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg></div>
-                <div><p class="text-sm text-blue-600">เงินคงเหลือ</p><p id="balance" class="text-2xl font-bold text-blue-700">0.00 .-</p></div>
-            </div>
-        </section>
-        
-        <!-- Input Form Section (Hidden by default) -->
-        <section id="form-section" class="k-card mb-8 hidden">
-            <div id="form-container">
-                <div class="flex justify-center mb-6"><div id="tab-container" class="inline-flex space-x-2 p-1.5 bg-gray-100 rounded-full relative"><div id="tab-highlighter" class="absolute top-1.5 h-10 w-1/2 rounded-full transition-all duration-300"></div><button id="income-tab" data-type="รายรับ" class="tab-button z-10 w-24">รายรับ</button><button id="expense-tab" data-type="รายจ่าย" class="tab-button z-10 w-24">รายจ่าย</button></div></div>
-                <form id="transaction-form" class="space-y-4">
-                    <input type="hidden" id="transaction-type" value="รายรับ">
-                    <div><label for="amount" class="font-medium text-gray-600">จำนวนเงิน</label><input type="number" id="amount" class="k-input mt-1" placeholder="0.00" required></div>
-                    <div><label for="category" class="font-medium text-gray-600">หมวดหมู่</label><select id="category" class="k-select mt-1" required></select></div>
-                    <div><label for="account" class="font-medium text-gray-600">บัญชี</label><select id="account" class="k-select mt-1" required></select></div>
-                    <div><label for="datetime" class="font-medium text-gray-600">วัน-เวลา</label><input type="text" id="datetime" class="k-input mt-1" placeholder="เลือกวันและเวลา" required></div>
-                    <div><label for="details" class="font-medium text-gray-600">รายละเอียด (ไม่บังคับ)</label><textarea id="details" class="k-input mt-1" rows="3" placeholder="เช่น ซื้อวัตถุดิบเข้าร้าน"></textarea></div>
-                    <div class="pt-4 flex justify-end space-x-3"><button type="button" id="cancel-btn" class="k-button bg-gray-200 hover:bg-gray-300 text-gray-700">ยกเลิก</button><button type="button" id="save-btn" class="k-button bg-pink-500 hover:bg-pink-600 text-white">บันทึกรายการ</button></div>
-                </form>
-            </div>
-        </section>
+        <!-- Main Tabs -->
+        <div class="mb-8 border-b border-gray-200">
+            <nav class="flex justify-center -mb-px space-x-6" aria-label="Tabs">
+                <button id="tab-dashboard" class="main-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg text-gray-500 hover:text-pink-600 hover:border-pink-300">
+                    แดชบอร์ด
+                </button>
+                <button id="tab-transactions" class="main-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg text-gray-500 hover:text-pink-600 hover:border-pink-300">
+                    รายการ
+                </button>
+            </nav>
+        </div>
 
-        <!-- Charts Section -->
-        <section class="space-y-8 mb-24">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Dashboard View -->
+        <div id="view-dashboard">
+            <!-- Filter Buttons -->
+            <section class="mb-6 flex justify-center flex-wrap gap-2">
+                <button id="filter-day" class="filter-btn k-button">วัน</button>
+                <button id="filter-month" class="filter-btn k-button">เดือน</button>
+                <button id="filter-year" class="filter-btn k-button">ปี</button>
+                <button id="filter-all" class="filter-btn k-button">ทั้งหมด</button>
+            </section>
+
+            <!-- Dashboard Summary -->
+            <section class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div class="k-card lg:row-span-2 flex flex-col justify-center items-center bg-blue-50 border border-blue-200">
+                     <div class="p-4 bg-blue-100 rounded-full mb-4">
+                        <svg class="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    </div>
+                    <p id="dashboard-balance-label" class="text-lg text-blue-600">ยอดคงเหลือ (วันนี้)</p>
+                    <p id="balance" class="text-4xl font-bold text-blue-700">0.00 .-</p>
+                </div>
+                <div class="space-y-6">
+                     <div class="k-card flex items-center space-x-4 bg-green-50 border border-green-200">
+                        <div class="p-3 bg-green-100 rounded-full">
+                            <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 6v2m0 8v2m-6-4h.01M18 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <div>
+                            <p id="dashboard-income-label" class="text-sm text-green-600">รายรับ (วันนี้)</p>
+                            <p id="daily-income" class="text-2xl font-bold text-green-700">0.00 .-</p>
+                        </div>
+                    </div>
+                     <div class="k-card flex items-center space-x-4 bg-red-50 border border-red-200">
+                        <div class="p-3 bg-red-100 rounded-full">
+                            <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        </div>
+                        <div>
+                            <p id="dashboard-expense-label" class="text-sm text-red-600">รายจ่าย (วันนี้)</p>
+                            <p id="daily-expense" class="text-2xl font-bold text-red-700">0.00 .-</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <section class="space-y-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="k-card">
+                        <h3 class="font-bold text-xl mb-4 text-center">สรุปรายรับ</h3>
+                        <div class="flex flex-col md:flex-row items-center gap-6"><div id="income-doughnut-container" class="doughnut-chart-container flex-shrink-0"><canvas id="incomeDoughnutChart"></canvas></div><div id="income-doughnut-legend" class="doughnut-legend w-full"></div></div>
+                    </div>
+                     <div class="k-card">
+                        <h3 class="font-bold text-xl mb-4 text-center">สรุปรายจ่าย</h3>
+                         <div class="flex flex-col md:flex-row items-center gap-6"><div id="expense-doughnut-container" class="doughnut-chart-container flex-shrink-0"><canvas id="expenseDoughnutChart"></canvas></div><div id="expense-doughnut-legend" class="doughnut-legend w-full"></div></div>
+                    </div>
+                </div>
                 <div class="k-card">
-                    <h3 class="font-bold text-xl mb-4 text-center">สรุปรายรับ</h3>
-                    <div class="flex flex-col md:flex-row items-center gap-6"><div id="income-doughnut-container" class="doughnut-chart-container flex-shrink-0"><canvas id="incomeDoughnutChart"></canvas></div><div id="income-doughnut-legend" class="doughnut-legend w-full"></div></div>
+                    <div class="chart-nav">
+                        <button id="prev-month-btn" class="chart-nav-btn">&lt;</button>
+                        <h3 id="daily-chart-title" class="chart-title">สรุปรายรับ - รายจ่าย</h3>
+                        <button id="next-month-btn" class="chart-nav-btn">&gt;</button>
+                    </div>
+                    <div class="chart-container"><canvas id="dailyChart"></canvas></div>
+                    <div id="daily-summary" class="mt-4 text-center text-sm text-gray-500"></div>
                 </div>
-                 <div class="k-card">
-                    <h3 class="font-bold text-xl mb-4 text-center">สรุปรายจ่าย</h3>
-                     <div class="flex flex-col md:flex-row items-center gap-6"><div id="expense-doughnut-container" class="doughnut-chart-container flex-shrink-0"><canvas id="expenseDoughnutChart"></canvas></div><div id="expense-doughnut-legend" class="doughnut-legend w-full"></div></div>
+                <div class="k-card">
+                     <div class="chart-nav">
+                        <button id="prev-year-btn" class="chart-nav-btn">&lt;</button>
+                        <h3 id="monthly-chart-title" class="chart-title">สรุปรายรับ - รายจ่าย</h3>
+                        <button id="next-year-btn" class="chart-nav-btn">&gt;</button>
+                    </div>
+                    <div class="chart-container"><canvas id="monthlyChart"></canvas></div>
                 </div>
-            </div>
+                <div class="k-card">
+                    <div class="chart-nav">
+                        <button id="prev-year-btn-2" class="chart-nav-btn">&lt;</button>
+                        <h3 id="yearly-chart-title" class="chart-title">สรุปภาพรวม</h3>
+                        <button id="next-year-btn-2" class="chart-nav-btn">&gt;</button>
+                    </div>
+                    <div class="chart-container"><canvas id="yearlyChart"></canvas></div>
+                </div>
+            </section>
+        </div>
 
-            <div class="k-card">
-                <div class="chart-nav">
-                    <button id="prev-month-btn" class="chart-nav-btn">&lt;</button>
-                    <h3 id="daily-chart-title" class="chart-title">สรุปรายรับ - รายจ่าย</h3>
-                    <button id="next-month-btn" class="chart-nav-btn">&gt;</button>
-                </div>
-                <div class="chart-container"><canvas id="dailyChart"></canvas></div>
-                <div id="daily-summary" class="mt-4 text-center text-sm text-gray-500"></div>
-            </div>
-            
-            <div class="k-card">
-                 <div class="chart-nav">
-                    <button id="prev-year-btn" class="chart-nav-btn">&lt;</button>
-                    <h3 id="monthly-chart-title" class="chart-title">สรุปรายรับ - รายจ่าย</h3>
-                    <button id="next-year-btn" class="chart-nav-btn">&gt;</button>
-                </div>
-                <div class="chart-container"><canvas id="monthlyChart"></canvas></div>
-            </div>
-
-            <div class="k-card">
-                <div class="chart-nav">
-                    <button id="prev-year-btn-2" class="chart-nav-btn">&lt;</button>
-                    <h3 id="yearly-chart-title" class="chart-title">สรุปภาพรวม</h3>
-                    <button id="next-year-btn-2" class="chart-nav-btn">&gt;</button>
-                </div>
-                <div class="chart-container"><canvas id="yearlyChart"></canvas></div>
-            </div>
-        </section>
+        <!-- Transactions View -->
+        <div id="view-transactions" class="hidden">
+            <section class="mb-6 flex justify-center flex-wrap gap-2">
+                <button id="list-filter-day" class="filter-btn k-button">วัน</button>
+                <button id="list-filter-month" class="filter-btn k-button">เดือน</button>
+                <button id="list-filter-year" class="filter-btn k-button">ปี</button>
+                <button id="list-filter-all" class="filter-btn k-button">ทั้งหมด</button>
+            </section>
+            <section id="transaction-list-container" class="space-y-6">
+                <!-- Transaction items will be rendered here -->
+            </section>
+        </div>
 
         <!-- Floating Action Button for Add -->
         <div id="add-transaction-btn" class="fab bg-orange-500 hover:bg-orange-600">
@@ -238,6 +284,7 @@
         const INCOME_CHART_COLORS = ['#3DBAA9', '#4BC0C0', '#55DDE0', '#2E9C8F', '#208173'];
         const EXPENSE_CHART_COLORS = ['#FF6384', '#FF9F40', '#FFCD56', '#4BC0C0', '#36A2EB'];
         const THAI_MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+        const THAI_DAYS_SHORT = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
 
         // --- STATE MANAGEMENT (with defaults) ---
         let state = {
@@ -245,43 +292,43 @@
             expenseCategories: [{ name: 'วัตถุดิบ', sub: ['ของสด', 'ของแห้ง'] },{ name: 'ค่าใช้จ่ายร้าน', sub: ['ค่าเช่า', 'ค่าน้ำ-ค่าไฟ', 'ค่าแก๊ส'] },{ name: 'ค่าจ้าง', sub: [] },{ name: 'อื่นๆ', sub: [] }],
             accounts: ['เงินสด', 'บัญชีธนาคาร กสิกร', 'บัญชีธนาคาร กรุงเทพ', 'TrueMoney Wallet'],
             currentTab: 'รายรับ',
+            currentView: 'dashboard', // 'dashboard' or 'transactions'
             allTransactions: [],
             charts: {},
             displayDate: new Date(),
             displayYear: new Date().getFullYear(),
+            dashboardPeriod: 'day', // 'day', 'month', 'year', 'all'
+            listFilterPeriod: 'all' // 'day', 'month', 'year', 'all'
         };
 
         // --- DOM ELEMENTS ---
         const DOMElements = {
             settingsBtn: document.getElementById('settings-btn'),
-            incomeTab: document.getElementById('income-tab'),
-            expenseTab: document.getElementById('expense-tab'),
-            tabHighlighter: document.getElementById('tab-highlighter'),
-            transactionTypeInput: document.getElementById('transaction-type'),
-            categorySelect: document.getElementById('category'),
-            accountSelect: document.getElementById('account'),
-            amountInput: document.getElementById('amount'),
-            detailsInput: document.getElementById('details'),
-            datetimeInput: document.getElementById('datetime'),
-            saveButton: document.getElementById('save-btn'),
-            cancelButton: document.getElementById('cancel-btn'),
             addTransactionBtn: document.getElementById('add-transaction-btn'),
-            formSection: document.getElementById('form-section'),
-            totalIncomeEl: document.getElementById('total-income'),
-            totalExpenseEl: document.getElementById('total-expense'),
-            balanceEl: document.getElementById('balance'),
+            dashboardBalanceLabel: document.getElementById('dashboard-balance-label'),
+            dashboardIncomeLabel: document.getElementById('dashboard-income-label'),
+            dashboardExpenseLabel: document.getElementById('dashboard-expense-label'),
+            dashboardBalance: document.getElementById('balance'),
+            dashboardIncome: document.getElementById('daily-income'),
+            dashboardExpense: document.getElementById('daily-expense'),
             dailySummaryEl: document.getElementById('daily-summary'),
             incomeDoughnutLegend: document.getElementById('income-doughnut-legend'),
             expenseDoughnutLegend: document.getElementById('expense-doughnut-legend'),
             dailyChartTitle: document.getElementById('daily-chart-title'),
             monthlyChartTitle: document.getElementById('monthly-chart-title'),
             yearlyChartTitle: document.getElementById('yearly-chart-title'),
+            currentDateTimeDisplay: document.getElementById('current-datetime-display'),
             prevMonthBtn: document.getElementById('prev-month-btn'),
             nextMonthBtn: document.getElementById('next-month-btn'),
             prevYearBtn: document.getElementById('prev-year-btn'),
             nextYearBtn: document.getElementById('next-year-btn'),
             prevYearBtn2: document.getElementById('prev-year-btn-2'),
             nextYearBtn2: document.getElementById('next-year-btn-2'),
+            tabDashboard: document.getElementById('tab-dashboard'),
+            tabTransactions: document.getElementById('tab-transactions'),
+            viewDashboard: document.getElementById('view-dashboard'),
+            viewTransactions: document.getElementById('view-transactions'),
+            transactionListContainer: document.getElementById('transaction-list-container'),
         };
         
         // --- INITIALIZATION ---
@@ -333,11 +380,10 @@
                     if (settings.accounts) state.accounts = settings.accounts;
                 }
                 
-                initializeTabs();
-                initializeFlatpickr();
-                populateDropdowns();
                 setupEventListeners();
-                renderDashboard();
+                renderAll();
+                updateDateTimeDisplay();
+                setInterval(updateDateTimeDisplay, 1000 * 60);
                 
                 Swal.close();
 
@@ -350,32 +396,30 @@
                 });
             }
         }
-
-        function initializeTabs() {
-            const incomeColor = '#F472B6', expenseColor = '#FBBF24';
-            function updateTabUI() {
-                const isIncome = state.currentTab === 'รายรับ';
-                DOMElements.tabHighlighter.style.backgroundColor = isIncome ? incomeColor : expenseColor;
-                DOMElements.tabHighlighter.style.transform = isIncome ? 'translateX(0%)' : 'translateX(100%)';
-                DOMElements.incomeTab.classList.toggle('active', isIncome);
-                DOMElements.expenseTab.classList.toggle('active', !isIncome);
-                DOMElements.transactionTypeInput.value = state.currentTab;
-                populateDropdowns();
-            }
-            DOMElements.incomeTab.addEventListener('click', () => { state.currentTab = 'รายรับ'; updateTabUI(); });
-            DOMElements.expenseTab.addEventListener('click', () => { state.currentTab = 'รายจ่าย'; updateTabUI(); });
-            updateTabUI();
-        }
-
-        function initializeFlatpickr() {
-            flatpickr(DOMElements.datetimeInput, { enableTime: true, dateFormat: "Y-m-d H:i", defaultDate: new Date(), locale: "th" });
-        }
         
         function setupEventListeners() {
-            DOMElements.addTransactionBtn.addEventListener('click', () => { DOMElements.formSection.classList.remove('hidden'); DOMElements.addTransactionBtn.classList.add('hidden'); });
-            DOMElements.cancelButton.addEventListener('click', () => { DOMElements.formSection.classList.add('hidden'); DOMElements.addTransactionBtn.classList.remove('hidden'); });
-            DOMElements.saveButton.addEventListener('click', handleSaveTransaction);
+            DOMElements.addTransactionBtn.addEventListener('click', showTransactionForm);
             DOMElements.settingsBtn.addEventListener('click', showSettings);
+
+            // Main Tab Listeners
+            DOMElements.tabDashboard.addEventListener('click', () => switchView('dashboard'));
+            DOMElements.tabTransactions.addEventListener('click', () => switchView('transactions'));
+
+            // Dashboard Filter Listeners
+            document.querySelectorAll('#view-dashboard .filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    state.dashboardPeriod = e.target.id.replace('filter-', '');
+                    updateDashboardCards();
+                });
+            });
+
+            // Transaction List Filter Listeners
+            document.querySelectorAll('#view-transactions .filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    state.listFilterPeriod = e.target.id.replace('list-filter-', '');
+                    renderTransactionList();
+                });
+            });
 
             DOMElements.prevMonthBtn.addEventListener('click', () => updateDisplayMonth(-1));
             DOMElements.nextMonthBtn.addEventListener('click', () => updateDisplayMonth(1));
@@ -390,13 +434,24 @@
             DOMElements.prevYearBtn2.addEventListener('click', () => yearNavHandler(-1));
             DOMElements.nextYearBtn2.addEventListener('click', () => yearNavHandler(1));
         }
+
+        function switchView(viewName) {
+            state.currentView = viewName;
+            DOMElements.viewDashboard.classList.toggle('hidden', viewName !== 'dashboard');
+            DOMElements.viewTransactions.classList.toggle('hidden', viewName !== 'transactions');
+            DOMElements.tabDashboard.classList.toggle('active', viewName === 'dashboard');
+            DOMElements.tabTransactions.classList.toggle('active', viewName === 'transactions');
+            if (viewName === 'transactions') {
+                renderTransactionList();
+            }
+        }
         
         function updateDisplayMonth(change) {
             state.displayDate.setMonth(state.displayDate.getMonth() + change);
             renderDailyChart();
         }
 
-        // --- DATA FETCHING ---
+        // --- DATA FETCHING & SAVING ---
         async function fetchTransactions() {
             const url = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}&t=${new Date().getTime()}`;
             const response = await fetch(url);
@@ -413,6 +468,26 @@
             return await response.json();
         }
 
+        async function saveSettingsToSheet() {
+            Swal.fire({ title: 'กำลังบันทึกการตั้งค่า...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            try {
+                const payload = {
+                    incomeCategories: state.incomeCategories,
+                    expenseCategories: state.expenseCategories,
+                    accounts: state.accounts,
+                };
+                const response = await fetch(APP_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify(payload)
+                });
+                Swal.fire('สำเร็จ', 'บันทึกการตั้งค่าเรียบร้อย', 'success');
+            } catch (error) {
+                console.error("Error saving settings to sheet:", error);
+                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกการตั้งค่าได้', 'error');
+            }
+        }
+        
         function parseCSV(csvText) {
             if (!csvText || typeof csvText !== 'string') { return []; }
             const rows = csvText.trim().split('\n').slice(1);
@@ -431,19 +506,12 @@
             return transactions;
         }
 
-        function handleSaveTransaction() {
-            if (APP_SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') { Swal.fire('ตั้งค่าไม่สำเร็จ', 'กรุณาใส่ URL ของ Apps Script ในโค้ด HTML ก่อนใช้งาน', 'error'); return; }
-            const form = document.getElementById('transaction-form');
-            if (!form.checkValidity()) { form.reportValidity(); return; }
-            const data = { Timestamp: DOMElements.datetimeInput.value, Type: DOMElements.transactionTypeInput.value, Category: DOMElements.categorySelect.value, Amount: parseFloat(DOMElements.amountInput.value), Account: DOMElements.accountSelect.value, Details: DOMElements.detailsInput.value };
-            if (isNaN(data.Amount) || data.Amount <= 0) { Swal.fire('ข้อมูลไม่ถูกต้อง', 'กรุณากรอกจำนวนเงินให้ถูกต้อง', 'warning'); return; }
+        function handleSaveTransaction(data) {
             Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
             const callbackName = 'jsonpCallback' + Date.now();
             window[callbackName] = (response) => {
                 if (response.result === 'success') {
                     Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', showConfirmButton: false, timer: 1500 });
-                    form.reset(); initializeFlatpickr();
-                    DOMElements.formSection.classList.add('hidden'); DOMElements.addTransactionBtn.classList.remove('hidden');
                     initializeApp();
                 } else { Swal.fire('เกิดข้อผิดพลาด', `ไม่สามารถบันทึกข้อมูลได้: ${response.message}`, 'error'); }
                 delete window[callbackName]; document.body.removeChild(script);
@@ -454,11 +522,6 @@
             document.body.appendChild(script);
         }
         
-        function populateDropdowns() {
-            const categories = state.currentTab === 'รายรับ' ? state.incomeCategories : state.expenseCategories;
-            populateCategorySelect(DOMElements.categorySelect, categories);
-            populateSelect(DOMElements.accountSelect, state.accounts);
-        }
         function populateCategorySelect(selectElement, categoryData) {
             selectElement.innerHTML = '';
             categoryData.forEach(parentCat => {
@@ -473,24 +536,77 @@
             selectElement.innerHTML = ''; optionsArray.forEach(option => { const opt = document.createElement('option'); opt.value = option; opt.textContent = option; selectElement.appendChild(opt); });
         }
 
-        function renderDashboard() {
-            updateSummaryCards();
+        function renderAll() {
+            updateDashboardCards();
             renderDoughnutCharts();
             renderDailyChart();
             renderMonthlyChart();
             renderYearlyChart();
+            renderTransactionList();
+            switchView(state.currentView);
         }
         const formatCurrency = (num) => `${(num || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} .-`;
-        function updateSummaryCards() {
-            const totalIncome = state.allTransactions.filter(t => t.type === 'รายรับ').reduce((sum, t) => sum + t.amount, 0);
-            const totalExpense = state.allTransactions.filter(t => t.type === 'รายจ่าย').reduce((sum, t) => sum + t.amount, 0);
-            const balance = totalIncome - totalExpense;
-            DOMElements.totalIncomeEl.textContent = formatCurrency(totalIncome);
-            DOMElements.totalExpenseEl.textContent = formatCurrency(totalExpense);
-            DOMElements.balanceEl.textContent = formatCurrency(balance);
-            DOMElements.balanceEl.classList.toggle('text-red-700', balance < 0);
-            DOMElements.balanceEl.classList.toggle('text-blue-700', balance >= 0);
+        
+        function updateDashboardCards() {
+            let transactions = [];
+            let periodLabel = '';
+            const now = new Date();
+
+            switch (state.dashboardPeriod) {
+                case 'month':
+                    transactions = state.allTransactions.filter(t => t.timestamp.getFullYear() === now.getFullYear() && t.timestamp.getMonth() === now.getMonth());
+                    periodLabel = 'เดือนนี้';
+                    break;
+                case 'year':
+                    transactions = state.allTransactions.filter(t => t.timestamp.getFullYear() === now.getFullYear());
+                    periodLabel = 'ปีนี้';
+                    break;
+                case 'all':
+                    transactions = state.allTransactions;
+                    periodLabel = 'ทั้งหมด';
+                    break;
+                case 'day':
+                default:
+                    const todayStr = now.toDateString();
+                    transactions = state.allTransactions.filter(t => t.timestamp.toDateString() === todayStr);
+                    periodLabel = 'วันนี้';
+                    break;
+            }
+
+            const income = transactions.filter(t => t.type === 'รายรับ').reduce((sum, t) => sum + t.amount, 0);
+            const expense = transactions.filter(t => t.type === 'รายจ่าย').reduce((sum, t) => sum + t.amount, 0);
+            const balance = income - expense;
+
+            DOMElements.dashboardBalanceLabel.textContent = `ยอดคงเหลือ (${periodLabel})`;
+            DOMElements.dashboardIncomeLabel.textContent = `รายรับ (${periodLabel})`;
+            DOMElements.dashboardExpenseLabel.textContent = `รายจ่าย (${periodLabel})`;
+
+            DOMElements.dashboardBalance.textContent = formatCurrency(balance);
+            DOMElements.dashboardIncome.textContent = formatCurrency(income);
+            DOMElements.dashboardExpense.textContent = formatCurrency(expense);
+            
+            DOMElements.dashboardBalance.classList.toggle('text-red-700', balance < 0);
+            DOMElements.dashboardBalance.classList.toggle('text-blue-700', balance >= 0);
+
+            document.querySelectorAll('#view-dashboard .filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            const activeButton = document.getElementById(`filter-${state.dashboardPeriod}`);
+            if (activeButton) {
+                activeButton.classList.add('active');
+            }
         }
+
+
+        function updateDateTimeDisplay() {
+            const now = new Date();
+            const dateOptions = { day: 'numeric', month: 'long', year: 'numeric' };
+            const timeOptions = { hour: '2-digit', minute: '2-digit' };
+            const dateStr = now.toLocaleDateString('th-TH', dateOptions);
+            const timeStr = now.toLocaleTimeString('th-TH', timeOptions);
+            DOMElements.currentDateTimeDisplay.textContent = `${dateStr} เวลา ${timeStr} น.`;
+        }
+
         function destroyChart(chartId) { if (state.charts[chartId]) { state.charts[chartId].destroy(); delete state.charts[chartId]; } }
         
         function renderDoughnutCharts() {
@@ -657,6 +773,87 @@
             });
         }
 
+        async function showTransactionForm() {
+            const formHtml = `
+                <div id="swal-form-container" class="p-4">
+                    <div class="flex justify-center mb-6">
+                        <div id="swal-tab-container" class="inline-flex space-x-2 p-1.5 bg-gray-100 rounded-full relative">
+                            <div id="swal-tab-highlighter" class="absolute top-1.5 h-10 w-1/2 bg-pink-500 rounded-full transition-all duration-300"></div>
+                            <button id="swal-income-tab" class="tab-button z-10 w-24 active">รายรับ</button>
+                            <button id="swal-expense-tab" class="tab-button z-10 w-24">รายจ่าย</button>
+                        </div>
+                    </div>
+                    <form id="swal-transaction-form" class="space-y-4 text-left">
+                        <input type="hidden" id="swal-transaction-type" value="รายรับ">
+                        <div><label for="swal-amount" class="font-medium text-gray-600">จำนวนเงิน</label><input type="number" id="swal-amount" class="k-input mt-1" placeholder="0.00" required></div>
+                        <div><label for="swal-category" class="font-medium text-gray-600">หมวดหมู่</label><select id="swal-category" class="k-select mt-1 k-input" required></select></div>
+                        <div><label for="swal-account" class="font-medium text-gray-600">บัญชี</label><select id="swal-account" class="k-select mt-1 k-input" required></select></div>
+                        <div><label for="swal-datetime" class="font-medium text-gray-600">วัน-เวลา</label><input type="text" id="swal-datetime" class="k-input mt-1" placeholder="เลือกวันและเวลา" required></div>
+                        <div><label for="swal-details" class="font-medium text-gray-600">รายละเอียด (ไม่บังคับ)</label><textarea id="swal-details" class="k-input mt-1" rows="3" placeholder="เช่น ซื้อวัตถุดิบเข้าร้าน"></textarea></div>
+                    </form>
+                </div>
+            `;
+
+            const { value: formValues } = await Swal.fire({
+                title: 'บันทึกรายการ',
+                html: formHtml,
+                width: '90%',
+                maxWidth: '500px',
+                showCancelButton: true,
+                confirmButtonText: 'บันทึก',
+                cancelButtonText: 'ยกเลิก',
+                didOpen: () => {
+                    const popup = Swal.getPopup();
+                    flatpickr(popup.querySelector('#swal-datetime'), { enableTime: true, dateFormat: "Y-m-d H:i", defaultDate: new Date(), locale: "th" });
+
+                    const incomeTab = popup.querySelector('#swal-income-tab');
+                    const expenseTab = popup.querySelector('#swal-expense-tab');
+                    const highlighter = popup.querySelector('#swal-tab-highlighter');
+                    const typeInput = popup.querySelector('#swal-transaction-type');
+                    const categorySelect = popup.querySelector('#swal-category');
+                    const accountSelect = popup.querySelector('#swal-account');
+
+                    const updateTabs = (type) => {
+                        state.currentTab = type;
+                        const isIncome = type === 'รายรับ';
+                        highlighter.style.backgroundColor = isIncome ? '#F472B6' : '#FBBF24';
+                        highlighter.style.transform = isIncome ? 'translateX(0%)' : 'translateX(100%)';
+                        incomeTab.classList.toggle('active', isIncome);
+                        expenseTab.classList.toggle('active', !isIncome);
+                        typeInput.value = type;
+                        
+                        const categories = isIncome ? state.incomeCategories : state.expenseCategories;
+                        populateCategorySelect(categorySelect, categories);
+                    };
+
+                    incomeTab.addEventListener('click', () => updateTabs('รายรับ'));
+                    expenseTab.addEventListener('click', () => updateTabs('รายจ่าย'));
+
+                    populateCategorySelect(categorySelect, state.incomeCategories);
+                    populateSelect(accountSelect, state.accounts);
+                },
+                preConfirm: () => {
+                    const amount = Swal.getPopup().querySelector('#swal-amount').value;
+                    if (!amount || parseFloat(amount) <= 0) {
+                        Swal.showValidationMessage('กรุณากรอกจำนวนเงินให้ถูกต้อง');
+                        return false;
+                    }
+                    return {
+                        Timestamp: Swal.getPopup().querySelector('#swal-datetime').value,
+                        Type: Swal.getPopup().querySelector('#swal-transaction-type').value,
+                        Category: Swal.getPopup().querySelector('#swal-category').value,
+                        Amount: parseFloat(amount),
+                        Account: Swal.getPopup().querySelector('#swal-account').value,
+                        Details: Swal.getPopup().querySelector('#swal-details').value
+                    };
+                }
+            });
+
+            if (formValues) {
+                handleSaveTransaction(formValues);
+            }
+        }
+
         async function showSettings() {
             Swal.fire({
                 title: 'การตั้งค่า',
@@ -671,28 +868,7 @@
                 }
             });
         }
-
-        async function saveSettingsToSheet() {
-            Swal.fire({ title: 'กำลังบันทึกการตั้งค่า...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            try {
-                const payload = {
-                    incomeCategories: state.incomeCategories,
-                    expenseCategories: state.expenseCategories,
-                    accounts: state.accounts,
-                };
-                const response = await fetch(APP_SCRIPT_URL, {
-                    method: 'POST',
-                    mode: 'no-cors', // Important for cross-origin POST to Apps Script
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                Swal.fire('สำเร็จ', 'บันทึกการตั้งค่าเรียบร้อย', 'success');
-            } catch (error) {
-                console.error("Error saving settings to sheet:", error);
-                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกการตั้งค่าได้', 'error');
-            }
-        }
-
+        
         async function manageCategories() {
             const { value: type } = await Swal.fire({ title: 'จัดการหมวดหมู่', input: 'radio', inputOptions: { 'รายรับ': 'รายรับ', 'รายจ่าย': 'รายจ่าย' }, inputValue: 'รายรับ', inputValidator: (v) => !v && 'กรุณาเลือกประเภท!' });
             if (type) {
@@ -721,7 +897,7 @@
                 }
 
                 if (changed) {
-                    populateDropdowns();
+                    initializeApp();
                     await saveSettingsToSheet();
                 }
             }
@@ -737,11 +913,117 @@
                 if (formValues.newAcc) { state.accounts.push(formValues.newAcc); changed = true; }
                 if (formValues.delAcc) { const i = state.accounts.indexOf(formValues.delAcc); if (i > -1) { state.accounts.splice(i, 1); changed = true; } }
                 if (changed) { 
-                    populateDropdowns(); 
+                    initializeApp();
                     await saveSettingsToSheet();
                 }
             }
         }
+
+        // --- Transaction List Rendering ---
+        function renderTransactionList() {
+            const container = DOMElements.transactionListContainer;
+            container.innerHTML = '';
+            
+            document.querySelectorAll('#view-transactions .filter-btn').forEach(btn => {
+                 btn.classList.toggle('active', btn.id === `list-filter-${state.listFilterPeriod}`);
+            });
+
+            let transactions = [];
+            const now = new Date();
+            
+            switch (state.listFilterPeriod) {
+                case 'month':
+                    transactions = state.allTransactions.filter(t => t.timestamp.getFullYear() === now.getFullYear() && t.timestamp.getMonth() === now.getMonth());
+                    break;
+                case 'year':
+                    transactions = state.allTransactions.filter(t => t.timestamp.getFullYear() === now.getFullYear());
+                    break;
+                case 'all':
+                    transactions = state.allTransactions;
+                    break;
+                case 'day':
+                default:
+                    const todayStr = now.toDateString();
+                    transactions = state.allTransactions.filter(t => t.timestamp.toDateString() === todayStr);
+                    break;
+            }
+
+            const sorted = transactions.sort((a, b) => b.timestamp - a.timestamp);
+            const grouped = sorted.reduce((acc, t) => {
+                const dateKey = t.timestamp.toLocaleDateString('en-CA'); // YYYY-MM-DD
+                if (!acc[dateKey]) {
+                    acc[dateKey] = [];
+                }
+                acc[dateKey].push(t);
+                return acc;
+            }, {});
+
+            if (Object.keys(grouped).length === 0) {
+                container.innerHTML = `<p class="text-center text-gray-500 mt-8">ไม่พบรายการ</p>`;
+                return;
+            }
+
+            for (const dateKey in grouped) {
+                const dayTransactions = grouped[dateKey];
+                const date = new Date(dateKey);
+                
+                const dayGroupContainer = document.createElement('div');
+                
+                const yearBE = date.getFullYear() + 543;
+                const dateHeader = document.createElement('div');
+                dateHeader.className = 'p-2 bg-gray-700 text-white rounded-t-lg text-center font-medium';
+                dateHeader.textContent = `${date.getDate()}/${date.getMonth() + 1}/${String(yearBE).slice(-2)} | ${THAI_DAYS_SHORT[date.getDay()]}`;
+                dayGroupContainer.appendChild(dateHeader);
+
+                const itemsContainer = document.createElement('div');
+                itemsContainer.className = 'border-2 border-dashed border-gray-300 rounded-b-lg p-4 space-y-3';
+
+                dayTransactions.forEach(t => {
+                    const item = document.createElement('div');
+                    item.className = 'flex justify-between items-center';
+                    
+                    const leftCol = document.createElement('div');
+                    const categoryEl = document.createElement('p');
+                    categoryEl.className = 'font-semibold text-gray-800';
+                    categoryEl.textContent = t.category;
+                    leftCol.appendChild(categoryEl);
+
+                    if (t.details) {
+                        const detailsEl = document.createElement('p');
+                        detailsEl.className = 'text-sm text-gray-500';
+                        detailsEl.textContent = t.details;
+                        leftCol.appendChild(detailsEl);
+                    }
+                    
+                    const rightCol = document.createElement('div');
+                    rightCol.className = 'text-right';
+                    
+                    const thbText = document.createElement('p');
+                    thbText.className = 'text-xs text-gray-400';
+                    thbText.textContent = 'THB';
+                    rightCol.appendChild(thbText);
+
+                    const amountEl = document.createElement('p');
+                    amountEl.className = 'font-bold text-lg';
+                    if (t.type === 'รายรับ') {
+                        amountEl.classList.add('text-cyan-500');
+                        amountEl.textContent = `+${t.amount.toLocaleString('th-TH')}`;
+                    } else {
+                        amountEl.classList.add('text-red-700');
+                        amountEl.textContent = `-${t.amount.toLocaleString('th-TH')}`;
+                    }
+                    rightCol.appendChild(amountEl);
+
+                    item.appendChild(leftCol);
+                    item.appendChild(rightCol);
+                    itemsContainer.appendChild(item);
+                });
+
+                dayGroupContainer.appendChild(itemsContainer);
+                container.appendChild(dayGroupContainer);
+            }
+        }
+
     </script>
 </body>
 </html>
