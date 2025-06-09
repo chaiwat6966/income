@@ -285,7 +285,7 @@
         
         // --- INITIALIZATION ---
         document.addEventListener('DOMContentLoaded', () => {
-            Chart.defaults.font.family = "'Kanit', sans-serif"; // Set default chart font
+            Chart.defaults.font.family = "'Kanit', sans-serif";
             
             const centerTextPlugin = {
                 id: 'centerText',
@@ -311,7 +311,8 @@
                 }
             };
             Chart.register(centerTextPlugin, ChartDataLabels);
-
+            
+            loadSettings(); // Load saved settings on start
             initializeTabs();
             initializeFlatpickr();
             populateDropdowns();
@@ -363,6 +364,34 @@
             state.displayDate.setMonth(state.displayDate.getMonth() + change);
             renderDailyChart();
         }
+
+        // --- SETTINGS PERSISTENCE ---
+        function saveSettings() {
+            try {
+                localStorage.setItem('expenseTracker_incomeCategories', JSON.stringify(state.incomeCategories));
+                localStorage.setItem('expenseTracker_expenseCategories', JSON.stringify(state.expenseCategories));
+                localStorage.setItem('expenseTracker_accounts', JSON.stringify(state.accounts));
+                console.log("Settings saved to localStorage.");
+            } catch (e) {
+                console.error("Failed to save settings to localStorage", e);
+            }
+        }
+
+        function loadSettings() {
+            try {
+                const savedIncome = localStorage.getItem('expenseTracker_incomeCategories');
+                const savedExpense = localStorage.getItem('expenseTracker_expenseCategories');
+                const savedAccounts = localStorage.getItem('expenseTracker_accounts');
+
+                if (savedIncome) state.incomeCategories = JSON.parse(savedIncome);
+                if (savedExpense) state.expenseCategories = JSON.parse(savedExpense);
+                if (savedAccounts) state.accounts = JSON.parse(savedAccounts);
+                console.log("Settings loaded from localStorage.");
+            } catch (e) {
+                console.error("Failed to load settings from localStorage", e);
+            }
+        }
+        // --- END SETTINGS PERSISTENCE ---
 
         async function fetchDataAndRender() {
             Swal.fire({ title: 'กำลังโหลดข้อมูล...', text: 'กรุณารอสักครู่', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
@@ -604,7 +633,7 @@
                     barPercentage: 0.5
                 }]},
                 options: {
-                    indexAxis: 'x', // Vertical bar chart
+                    indexAxis: 'x', 
                     responsive: true, maintainAspectRatio: false,
                     scales: { 
                         y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { display: false } }, 
@@ -651,13 +680,13 @@
                 const categories = type === 'รายรับ' ? state.incomeCategories : state.expenseCategories;
                 if (action === 'addParent') {
                     const { value: name } = await Swal.fire({ title: `ชื่อหมวดหมู่หลักใหม่ (${type})`, input: 'text', inputValidator: v => !v && 'กรุณากรอกชื่อ!' });
-                    if (name) { categories.push({ name: name, sub: [] }); Swal.fire('สำเร็จ', `เพิ่มหมวดหมู่ '${name}' แล้ว`, 'success'); populateDropdowns(); }
+                    if (name) { categories.push({ name: name, sub: [] }); saveSettings(); Swal.fire('สำเร็จ', `เพิ่มหมวดหมู่ '${name}' แล้ว`, 'success'); populateDropdowns(); }
                 } else if (action === 'addChild') {
                     const inputOptions = categories.reduce((obj, cat) => { obj[cat.name] = cat.name; return obj; }, {});
                     const { value: parentName } = await Swal.fire({ title: 'เลือกหมวดหมู่หลัก', input: 'select', inputOptions });
                     if (parentName) {
                         const { value: childName } = await Swal.fire({ title: `ชื่อหมวดหมู่ย่อยสำหรับ '${parentName}'`, input: 'text', inputValidator: v => !v && 'กรุณากรอกชื่อ!' });
-                        if (childName) { const parent = categories.find(c => c.name === parentName); parent.sub.push(childName); Swal.fire('สำเร็จ', `เพิ่มหมวดหมู่ย่อย '${childName}' แล้ว`, 'success'); populateDropdowns(); }
+                        if (childName) { const parent = categories.find(c => c.name === parentName); parent.sub.push(childName); saveSettings(); Swal.fire('สำเร็จ', `เพิ่มหมวดหมู่ย่อย '${childName}' แล้ว`, 'success'); populateDropdowns(); }
                     }
                 } else if (action === 'delete') {
                     const inputOptions = {}; categories.forEach(p => { inputOptions[p.name] = p.name + ' (หลัก)'; p.sub.forEach(c => inputOptions[c] = ` - ${c}`); });
@@ -665,6 +694,7 @@
                      if(nameToDelete) {
                         let parent = categories.find(p => p.name === nameToDelete);
                         if(parent) { state[type === 'รายรับ' ? 'incomeCategories' : 'expenseCategories'] = categories.filter(p => p.name !== nameToDelete); } else { categories.forEach(p => { p.sub = p.sub.filter(c => c !== nameToDelete); }); }
+                        saveSettings();
                         Swal.fire('สำเร็จ', `ลบ '${nameToDelete}' แล้ว`, 'success'); populateDropdowns();
                      }
                 }
@@ -680,7 +710,11 @@
                 let changed = false;
                 if (formValues.newAcc) { state.accounts.push(formValues.newAcc); changed = true; }
                 if (formValues.delAcc) { const i = state.accounts.indexOf(formValues.delAcc); if (i > -1) { state.accounts.splice(i, 1); changed = true; } }
-                if (changed) { populateDropdowns(); Swal.fire('สำเร็จ', 'อัปเดตบัญชีเรียบร้อย', 'success'); }
+                if (changed) { 
+                    saveSettings();
+                    populateDropdowns(); 
+                    Swal.fire('สำเร็จ', 'อัปเดตบัญชีเรียบร้อย', 'success'); 
+                }
             }
         }
     </script>
