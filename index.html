@@ -1138,7 +1138,7 @@
 
             const sorted = transactions.sort((a, b) => b.timestamp - a.timestamp);
             const grouped = sorted.reduce((acc, t) => {
-                const dateKey = t.timestamp.toLocaleDateString('en-CA'); // ইসলামাবাদের-MM-dd
+                const dateKey = t.timestamp.toLocaleDateString('en-CA'); // yyyy-MM-dd
                 if (!acc[dateKey]) {
                     acc[dateKey] = [];
                 }
@@ -1163,79 +1163,4 @@
                 dateHeaderContainer.className = 'flex justify-between items-center p-2 bg-gray-700 text-white rounded-t-lg font-medium';
                 
                 const dateHeaderText = document.createElement('span');
-                dateHeaderText.textContent = `${date.getDate()}/${date.getMonth() + 1}/${String(yearBE).slice(-2)} | ${THAI_DAYS_SHORT[date.getDay()]}`;
-                
-                const editButton = document.createElement('button');
-                editButton.className = 'p-1 rounded-full hover:bg-gray-600';
-                editButton.dataset.action = 'toggle-edit';
-                editButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`;
-
-                dateHeaderContainer.appendChild(dateHeaderText);
-                dateHeaderContainer.appendChild(editButton);
-                dayGroupContainer.appendChild(dateHeaderContainer);
-
-                const itemsContainer = document.createElement('div');
-                itemsContainer.className = 'border-2 border-dashed border-gray-300 rounded-b-lg p-4 space-y-3';
-
-                dayTransactions.forEach(t => {
-                    const item = document.createElement('div');
-                    item.className = 'flex justify-between items-center';
-                    
-                    const leftCol = document.createElement('div');
-                    const categoryEl = document.createElement('p');
-                    categoryEl.className = 'font-semibold text-gray-800';
-                    categoryEl.textContent = t.category;
-                    leftCol.appendChild(categoryEl);
-
-                    if (t.details) {
-                        const detailsEl = document.createElement('p');
-                        detailsEl.className = 'text-sm text-gray-500';
-                        detailsEl.textContent = t.details;
-                        leftCol.appendChild(detailsEl);
-                    }
-                    
-                    const rightCol = document.createElement('div');
-                    rightCol.className = 'flex items-center space-x-4';
-
-                    const amountContainer = document.createElement('div');
-                    amountContainer.className = 'text-right';
-                    
-                    const thbText = document.createElement('p');
-                    thbText.className = 'text-xs text-gray-400';
-                    thbText.textContent = 'THB';
-                    amountContainer.appendChild(thbText);
-
-                    const amountEl = document.createElement('p');
-                    amountEl.className = 'font-bold text-lg';
-                    if (t.type === 'รายรับ') {
-                        amountEl.classList.add('text-cyan-500');
-                        amountEl.textContent = `+${t.amount.toLocaleString('th-TH')}`;
-                    } else {
-                        amountEl.classList.add('text-red-700');
-                        amountEl.textContent = `-${t.amount.toLocaleString('th-TH')}`;
-                    }
-                    amountContainer.appendChild(amountEl);
-
-                    const deleteBtn = document.createElement('button');
-                    deleteBtn.className = 'delete-btn p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-100 rounded-full';
-                    deleteBtn.dataset.timestamp = t.timestamp.toISOString();
-                    deleteBtn.dataset.amount = t.amount;
-                    deleteBtn.dataset.category = t.category;
-                    deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
-
-                    rightCol.appendChild(amountContainer);
-                    rightCol.appendChild(deleteBtn);
-                    
-                    item.appendChild(leftCol);
-                    item.appendChild(rightCol);
-                    itemsContainer.appendChild(item);
-                });
-
-                dayGroupContainer.appendChild(itemsContainer);
-                container.appendChild(dayGroupContainer);
-            }
-        }
-
-    </script>
-</body>
-</html>
+                dateHeaderText.textContent = `${date.getDate()}/${date.getMonth() + 1}/${String(yearBE).slice(-2)} | ${THAI_D
