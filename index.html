@@ -539,7 +539,7 @@
         // --- DATA FETCHING & SAVING ---
         async function fetchTransactions() {
             const url = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}&t=${new Date().getTime()}`;
-            const response = await fetch(url, { cache: 'no-store' }); // Force no-cache
+            const response = await fetch(url, { cache: 'reload' }); 
             if (!response.ok) { throw new Error(`Network response was not ok (status: ${response.status})`); }
             const csvText = await response.text();
             if (csvText.includes('<html')) { throw new Error('ได้รับไฟล์ HTML แทนที่จะเป็น CSV อาจเกิดจาก ID ชีตผิดหรือการตั้งค่าการแชร์ไม่ถูกต้อง'); }
@@ -547,8 +547,8 @@
         }
 
         async function fetchSettings() {
-            const url = `${APP_SCRIPT_URL}?action=get_settings&t=${new Date().getTime()}`; // Cache bust settings
-            const response = await fetch(url, { cache: 'no-store' });
+            const url = `${APP_SCRIPT_URL}?action=get_settings&t=${new Date().getTime()}`;
+            const response = await fetch(url, { cache: 'reload' });
             if (!response.ok) { throw new Error('ไม่สามารถโหลดข้อมูลการตั้งค่าได้'); }
             return await response.json();
         }
@@ -584,11 +584,11 @@
                 };
                 const response = await fetch(APP_SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'no-cors', // Use no-cors for this type of simple request
+                    mode: 'no-cors', 
                     body: JSON.stringify(payload)
                 });
                 Swal.fire('ลบสำเร็จ!', 'รายการของคุณถูกลบแล้ว', 'success');
-                initializeApp(); // Refresh all data and UI
+                initializeApp(); 
             } catch (error) {
                 console.error("Error deleting transaction:", error);
                 Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถลบรายการได้', 'error');
@@ -1138,7 +1138,7 @@
 
             const sorted = transactions.sort((a, b) => b.timestamp - a.timestamp);
             const grouped = sorted.reduce((acc, t) => {
-                const dateKey = t.timestamp.toLocaleDateString('en-CA'); // yyyy-MM-dd
+                const dateKey = t.timestamp.toLocaleDateString('en-CA'); // ইসলামাবাদের-MM-dd
                 if (!acc[dateKey]) {
                     acc[dateKey] = [];
                 }
