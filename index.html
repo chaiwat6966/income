@@ -188,10 +188,8 @@
 
         <!-- Header Section -->
         <header class="text-center mb-4">
-            <div class="inline-block bg-white p-4 rounded-full shadow-md mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-pink-400">
-                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
-                </svg>
+            <div class="inline-block bg-white p-2 rounded-full shadow-md mb-4">
+                <img src="https://i.postimg.cc/g2YWYjFW/Copilot-20250610-101948.png" alt="Logo" class="w-16 h-16 rounded-full">
             </div>
             <h1 class="text-3xl font-bold text-gray-800">รายรับ-รายจ่าย</h1>
             <p class="text-lg text-gray-500">หน้าบ้านมินิมาร์ท</p>
@@ -1188,10 +1186,10 @@
 
                     const amountEl = document.createElement('p');
                     amountEl.className = 'font-bold text-lg';
-                    if (t.type === 'รายรับ') {
+                    if (t.type === 'รายรับ' && typeof t.amount === 'number') {
                         amountEl.classList.add('text-cyan-500');
                         amountEl.textContent = `+${t.amount.toLocaleString('th-TH')}`;
-                    } else {
+                    } else if (typeof t.amount === 'number') {
                         amountEl.classList.add('text-red-700');
                         amountEl.textContent = `-${t.amount.toLocaleString('th-TH')}`;
                     }
