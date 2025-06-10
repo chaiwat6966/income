@@ -541,7 +541,7 @@
         // --- DATA FETCHING & SAVING ---
         async function fetchTransactions() {
             const url = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}&t=${new Date().getTime()}`;
-            const response = await fetch(url);
+            const response = await fetch(url, { cache: 'no-store' }); // Force no-cache
             if (!response.ok) { throw new Error(`Network response was not ok (status: ${response.status})`); }
             const csvText = await response.text();
             if (csvText.includes('<html')) { throw new Error('ได้รับไฟล์ HTML แทนที่จะเป็น CSV อาจเกิดจาก ID ชีตผิดหรือการตั้งค่าการแชร์ไม่ถูกต้อง'); }
@@ -549,8 +549,8 @@
         }
 
         async function fetchSettings() {
-            const url = `${APP_SCRIPT_URL}?action=get_settings`;
-            const response = await fetch(url);
+            const url = `${APP_SCRIPT_URL}?action=get_settings&t=${new Date().getTime()}`; // Cache bust settings
+            const response = await fetch(url, { cache: 'no-store' });
             if (!response.ok) { throw new Error('ไม่สามารถโหลดข้อมูลการตั้งค่าได้'); }
             return await response.json();
         }
