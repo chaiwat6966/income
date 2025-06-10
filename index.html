@@ -413,17 +413,29 @@
             Swal.fire({ title: 'กำลังโหลดข้อมูล...', text: 'กรุณารอสักครู่', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
             
             try {
-                const [transactions, settings] = await Promise.all([
-                    fetchTransactions(),
-                    fetchSettings()
-                ]);
+                const response = await fetch(APP_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({ action: 'get_initial_data' })
+                });
 
-                state.allTransactions = transactions;
+                if (!response.ok) { throw new Error(`Server error: ${response.statusText}`); }
 
-                if (settings) {
-                    if (settings.incomeCategories) state.incomeCategories = settings.incomeCategories;
-                    if (settings.expenseCategories) state.expenseCategories = settings.expenseCategories;
-                    if (settings.accounts) state.accounts = settings.accounts;
+                const data = await response.json();
+                
+                state.allTransactions = data.transactions.map(t => ({
+                    timestamp: new Date(t.Timestamp),
+                    type: t.Type,
+                    category: t.Category,
+                    amount: t.Amount,
+                    account: t.Account,
+                    details: t.Details
+                }));
+
+                if (data.settings) {
+                    if (data.settings.incomeCategories) state.incomeCategories = data.settings.incomeCategories;
+                    if (data.settings.expenseCategories) state.expenseCategories = data.settings.expenseCategories;
+                    if (data.settings.accounts) state.accounts = data.settings.accounts;
                 }
                 
                 setupEventListeners();
@@ -537,34 +549,29 @@
         }
 
         // --- DATA FETCHING & SAVING ---
-        async function fetchTransactions() {
-            const url = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}&t=${new Date().getTime()}`;
-            const response = await fetch(url, { cache: 'reload' }); 
-            if (!response.ok) { throw new Error(`Network response was not ok (status: ${response.status})`); }
-            const csvText = await response.text();
-            if (csvText.includes('<html')) { throw new Error('ได้รับไฟล์ HTML แทนที่จะเป็น CSV อาจเกิดจาก ID ชีตผิดหรือการตั้งค่าการแชร์ไม่ถูกต้อง'); }
-            return parseCSV(csvText);
-        }
-
-        async function fetchSettings() {
-            const url = `${APP_SCRIPT_URL}?action=get_settings&t=${new Date().getTime()}`;
-            const response = await fetch(url, { cache: 'reload' });
-            if (!response.ok) { throw new Error('ไม่สามารถโหลดข้อมูลการตั้งค่าได้'); }
-            return await response.json();
+        async function apiPost(payload) {
+            const response = await fetch(APP_SCRIPT_URL, {
+                method: 'POST',
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify(payload),
+                mode: 'cors'
+            });
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.statusText}`);
+            }
+            return response.json();
         }
 
         async function saveSettingsToSheet() {
             Swal.fire({ title: 'กำลังบันทึกการตั้งค่า...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
             try {
-                const payload = {
-                    incomeCategories: state.incomeCategories,
-                    expenseCategories: state.expenseCategories,
-                    accounts: state.accounts,
-                };
-                const response = await fetch(APP_SCRIPT_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify(payload)
+                await apiPost({
+                    action: 'save_settings',
+                    data: {
+                        incomeCategories: state.incomeCategories,
+                        expenseCategories: state.expenseCategories,
+                        accounts: state.accounts
+                    }
                 });
                 Swal.fire('สำเร็จ', 'บันทึกการตั้งค่าเรียบร้อย', 'success');
             } catch (error) {
@@ -576,57 +583,31 @@
         async function handleDeleteTransaction(timestamp, amount, category) {
             Swal.fire({ title: 'กำลังลบรายการ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
             try {
-                 const payload = {
+                await apiPost({
                     action: 'delete_transaction',
-                    timestamp: timestamp,
-                    amount: amount,
-                    category: category
-                };
-                const response = await fetch(APP_SCRIPT_URL, {
-                    method: 'POST',
-                    mode: 'no-cors', 
-                    body: JSON.stringify(payload)
+                    data: { timestamp, amount, category }
                 });
                 Swal.fire('ลบสำเร็จ!', 'รายการของคุณถูกลบแล้ว', 'success');
-                initializeApp(); 
+                initializeApp();
             } catch (error) {
                 console.error("Error deleting transaction:", error);
                 Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถลบรายการได้', 'error');
             }
         }
         
-        function parseCSV(csvText) {
-            if (!csvText || typeof csvText !== 'string') { return []; }
-            const rows = csvText.trim().split('\n').slice(1);
-            if (rows.length === 0 || (rows.length === 1 && rows[0].trim() === '')) { return []; }
-            const transactions = [];
-            rows.forEach((row, index) => {
-                const columns = row.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
-                if (columns.length < 4 || columns.every(c => c === '')) { return; }
-                const dateString = columns[0];
-                const timestamp = new Date(dateString);
-                if (isNaN(timestamp.getTime())) { console.error(`แถวที่ ${index + 2}: รูปแบบวันที่ "${dateString}" ไม่ถูกต้อง`); return; }
-                const amount = parseFloat(columns[3]);
-                if (isNaN(amount)) { console.warn(`แถวที่ ${index + 2}: จำนวนเงิน "${columns[3]}" ไม่ถูกต้อง`); return; }
-                transactions.push({ timestamp: timestamp, type: columns[1] || '', category: columns[2] || '', amount: amount, account: columns[4] || '', details: columns[5] || '' });
-            });
-            return transactions;
-        }
-
-        function handleSaveTransaction(data) {
+        async function handleSaveTransaction(data) {
             Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
-            const callbackName = 'jsonpCallback' + Date.now();
-            window[callbackName] = (response) => {
-                if (response.result === 'success') {
-                    Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', showConfirmButton: false, timer: 1500 });
-                    initializeApp();
-                } else { Swal.fire('เกิดข้อผิดพลาด', `ไม่สามารถบันทึกข้อมูลได้: ${response.message}`, 'error'); }
-                delete window[callbackName]; document.body.removeChild(script);
-            };
-            const script = document.createElement('script');
-            script.src = `${APP_SCRIPT_URL}?callback=${callbackName}&data=${encodeURIComponent(JSON.stringify(data))}`;
-            script.onerror = () => { Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อกับ Apps Script ได้ กรุณาตรวจสอบ URL และการตั้งค่า Deploy', 'error'); delete window[callbackName]; }
-            document.body.appendChild(script);
+            try {
+                await apiPost({
+                    action: 'save_transaction',
+                    data: data
+                });
+                Swal.fire('สำเร็จ!', 'บันทึกรายการเรียบร้อย', 'success');
+                initializeApp();
+            } catch (error) {
+                console.error("Error saving transaction:", error);
+                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกรายการได้', 'error');
+            }
         }
         
         function populateCategorySelect(selectElement, categoryData) {
@@ -1138,7 +1119,7 @@
 
             const sorted = transactions.sort((a, b) => b.timestamp - a.timestamp);
             const grouped = sorted.reduce((acc, t) => {
-                const dateKey = t.timestamp.toLocaleDateString('en-CA'); // yyyy-MM-dd
+                const dateKey = t.timestamp.toLocaleDateString('en-CA'); // admi-MM-dd
                 if (!acc[dateKey]) {
                     acc[dateKey] = [];
                 }
@@ -1163,4 +1144,79 @@
                 dateHeaderContainer.className = 'flex justify-between items-center p-2 bg-gray-700 text-white rounded-t-lg font-medium';
                 
                 const dateHeaderText = document.createElement('span');
-                dateHeaderText.textContent = `${date.getDate()}/${date.getMonth() + 1}/${String(yearBE).slice(-2)} | ${THAI_D
+                dateHeaderText.textContent = `${date.getDate()}/${date.getMonth() + 1}/${String(yearBE).slice(-2)} | ${THAI_DAYS_SHORT[date.getDay()]}`;
+                
+                const editButton = document.createElement('button');
+                editButton.className = 'p-1 rounded-full hover:bg-gray-600';
+                editButton.dataset.action = 'toggle-edit';
+                editButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`;
+
+                dateHeaderContainer.appendChild(dateHeaderText);
+                dateHeaderContainer.appendChild(editButton);
+                dayGroupContainer.appendChild(dateHeaderContainer);
+
+                const itemsContainer = document.createElement('div');
+                itemsContainer.className = 'border-2 border-dashed border-gray-300 rounded-b-lg p-4 space-y-3';
+
+                dayTransactions.forEach(t => {
+                    const item = document.createElement('div');
+                    item.className = 'flex justify-between items-center';
+                    
+                    const leftCol = document.createElement('div');
+                    const categoryEl = document.createElement('p');
+                    categoryEl.className = 'font-semibold text-gray-800';
+                    categoryEl.textContent = t.category;
+                    leftCol.appendChild(categoryEl);
+
+                    if (t.details) {
+                        const detailsEl = document.createElement('p');
+                        detailsEl.className = 'text-sm text-gray-500';
+                        detailsEl.textContent = t.details;
+                        leftCol.appendChild(detailsEl);
+                    }
+                    
+                    const rightCol = document.createElement('div');
+                    rightCol.className = 'flex items-center space-x-4';
+
+                    const amountContainer = document.createElement('div');
+                    amountContainer.className = 'text-right';
+                    
+                    const thbText = document.createElement('p');
+                    thbText.className = 'text-xs text-gray-400';
+                    thbText.textContent = 'THB';
+                    amountContainer.appendChild(thbText);
+
+                    const amountEl = document.createElement('p');
+                    amountEl.className = 'font-bold text-lg';
+                    if (t.type === 'รายรับ') {
+                        amountEl.classList.add('text-cyan-500');
+                        amountEl.textContent = `+${t.amount.toLocaleString('th-TH')}`;
+                    } else {
+                        amountEl.classList.add('text-red-700');
+                        amountEl.textContent = `-${t.amount.toLocaleString('th-TH')}`;
+                    }
+                    amountContainer.appendChild(amountEl);
+
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'delete-btn p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-100 rounded-full';
+                    deleteBtn.dataset.timestamp = t.timestamp.toISOString();
+                    deleteBtn.dataset.amount = t.amount;
+                    deleteBtn.dataset.category = t.category;
+                    deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
+
+                    rightCol.appendChild(amountContainer);
+                    rightCol.appendChild(deleteBtn);
+                    
+                    item.appendChild(leftCol);
+                    item.appendChild(rightCol);
+                    itemsContainer.appendChild(item);
+                });
+
+                dayGroupContainer.appendChild(itemsContainer);
+                container.appendChild(dayGroupContainer);
+            }
+        }
+
+    </script>
+</body>
+</html>
