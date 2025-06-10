@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>รายรับ-รายจ่าย หน้าบ้านมินิมาร์ท</title>
     
+    <!-- === Favicon & App Icons === -->
+    <!-- For Apple devices -->
+    <link rel="apple-touch-icon" sizes="180x180" href="https://i.postimg.cc/g2YWYjFW/Copilot-20250610-101948.png">
+    <!-- For other browsers -->
+    <link rel="icon" type="image/png" sizes="32x32" href="https://i.postimg.cc/g2YWYjFW/Copilot-20250610-101948.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="รายรับ-รายจ่าย">
+    <!-- ============================ -->
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
@@ -244,16 +254,26 @@
                 </div>
             </section>
             <section class="space-y-8">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="k-card">
-                        <h3 class="font-bold text-xl mb-4 text-center">สรุปรายรับ</h3>
-                        <div class="flex flex-col md:flex-row items-center gap-6"><div id="income-doughnut-container" class="doughnut-chart-container flex-shrink-0"><canvas id="incomeDoughnutChart"></canvas></div><div id="income-doughnut-legend" class="doughnut-legend w-full"></div></div>
+                <div class="k-card">
+                     <h3 class="font-bold text-xl mb-2 text-center">สรุปตามหมวดหมู่</h3>
+                     <div class="mb-4 flex justify-center flex-wrap gap-2">
+                        <button id="donut-filter-day" class="filter-btn k-button text-xs">วัน</button>
+                        <button id="donut-filter-month" class="filter-btn k-button text-xs">เดือน</button>
+                        <button id="donut-filter-year" class="filter-btn k-button text-xs">ปี</button>
+                        <button id="donut-filter-all" class="filter-btn k-button text-xs">ทั้งหมด</button>
                     </div>
-                     <div class="k-card">
-                        <h3 class="font-bold text-xl mb-4 text-center">สรุปรายจ่าย</h3>
-                         <div class="flex flex-col md:flex-row items-center gap-6"><div id="expense-doughnut-container" class="doughnut-chart-container flex-shrink-0"><canvas id="expenseDoughnutChart"></canvas></div><div id="expense-doughnut-legend" class="doughnut-legend tree-legend w-full"></div></div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div>
+                            <h4 class="font-semibold text-lg mb-4 text-center">รายรับ</h4>
+                            <div class="flex flex-col md:flex-row items-center gap-6"><div id="income-doughnut-container" class="doughnut-chart-container flex-shrink-0"><canvas id="incomeDoughnutChart"></canvas></div><div id="income-doughnut-legend" class="doughnut-legend w-full"></div></div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-lg mb-4 text-center">รายจ่าย</h4>
+                            <div class="flex flex-col md:flex-row items-center gap-6"><div id="expense-doughnut-container" class="doughnut-chart-container flex-shrink-0"><canvas id="expenseDoughnutChart"></canvas></div><div id="expense-doughnut-legend" class="doughnut-legend tree-legend w-full"></div></div>
+                        </div>
                     </div>
                 </div>
+
                 <div class="k-card">
                     <div class="chart-nav">
                         <button id="prev-month-btn" class="chart-nav-btn">&lt;</button>
@@ -324,8 +344,9 @@
             charts: {},
             displayDate: new Date(),
             displayYear: new Date().getFullYear(),
-            dashboardPeriod: 'day', // 'day', 'month', 'year', 'all'
-            listFilterPeriod: 'all' // 'day', 'month', 'year', 'all'
+            dashboardPeriod: 'day',
+            doughnutPeriod: 'year',
+            listFilterPeriod: 'all'
         };
 
         // --- DOM ELEMENTS ---
@@ -437,6 +458,14 @@
                 btn.addEventListener('click', (e) => {
                     state.dashboardPeriod = e.target.id.replace('filter-', '');
                     updateDashboardCards();
+                });
+            });
+
+            // Doughnut Chart Filter Listeners
+            document.querySelectorAll('.k-card .filter-btn').forEach(btn => {
+                 btn.addEventListener('click', (e) => {
+                    state.doughnutPeriod = e.target.id.replace('donut-filter-', '');
+                    renderDoughnutCharts();
                 });
             });
 
@@ -690,26 +719,47 @@
         function destroyChart(chartId) { if (state.charts[chartId]) { state.charts[chartId].destroy(); delete state.charts[chartId]; } }
         
         function renderDoughnutCharts() {
-            renderSingleDoughnutChart('รายรับ'); renderSingleDoughnutChart('รายจ่าย');
+            // Update active button state for doughnut filters
+            document.querySelectorAll('.k-card .filter-btn').forEach(btn => {
+                 btn.classList.toggle('active', btn.id === `donut-filter-${state.doughnutPeriod}`);
+            });
+            renderSingleDoughnutChart('รายรับ'); 
+            renderSingleDoughnutChart('รายจ่าย');
         }
+        
+        function getFilteredTransactions(period) {
+            const now = new Date();
+            switch (period) {
+                case 'month':
+                    return state.allTransactions.filter(t => t.timestamp.getFullYear() === now.getFullYear() && t.timestamp.getMonth() === now.getMonth());
+                case 'year':
+                    return state.allTransactions.filter(t => t.timestamp.getFullYear() === now.getFullYear());
+                case 'all':
+                    return state.allTransactions;
+                case 'day':
+                default:
+                    const todayStr = now.toDateString();
+                    return state.allTransactions.filter(t => t.timestamp.toDateString() === todayStr);
+            }
+        }
+
         function findParentCategory(categoryName, type) {
             const categories = type === 'รายรับ' ? state.incomeCategories : state.expenseCategories;
-            for (const parent of categories) { if (parent.name === categoryName) return parent.name; if (parent.sub.includes(categoryName)) return parent.name; } return categoryName;
+            for (const parent of categories) { if (parent.name === categoryName) return parent.name; if (parent.sub && parent.sub.includes(categoryName)) return parent.name; } return categoryName;
         }
         
         function renderSingleDoughnutChart(type) {
-            const currentYear = new Date().getFullYear();
-            const transactions = state.allTransactions.filter(t => t.type === type && t.timestamp.getFullYear() === currentYear);
-            const summaryByParent = transactions.reduce((acc, t) => { const parentCat = findParentCategory(t.category, type); acc[parentCat] = (acc[parentCat] || 0) + t.amount; return acc; }, {});
-            
             const isIncome = type === 'รายรับ';
+            const transactions = getFilteredTransactions(state.doughnutPeriod).filter(t => t.type === type);
+            const summary = transactions.reduce((acc, t) => { acc[t.category] = (acc[t.category] || 0) + t.amount; return acc; }, {});
+            
             const chartId = isIncome ? 'incomeDoughnut' : 'expenseDoughnut';
             const legendEl = isIncome ? DOMElements.incomeDoughnutLegend : DOMElements.expenseDoughnutLegend;
             const colors = isIncome ? INCOME_CHART_COLORS : EXPENSE_CHART_COLORS;
             const centerTextColor = isIncome ? '#208173' : '#DC2626';
 
-            const labels = Object.keys(summaryByParent);
-            const data = Object.values(summaryByParent);
+            const labels = Object.keys(summary);
+            const data = Object.values(summary);
             const totalAmount = data.reduce((sum, val) => sum + val, 0);
 
             destroyChart(chartId);
@@ -730,17 +780,29 @@
                 }
             });
             
-            legendEl.innerHTML = '';
             if(isIncome) {
-                 labels.forEach((label, i) => { const p = totalAmount > 0 ? ((data[i] / totalAmount) * 100).toFixed(1) : 0; const li = document.createElement('li'); li.innerHTML = `<div class="legend-color-box" style="background-color: ${colors[i % colors.length]}"></div><span class="flex-grow">${label}</span><span class="font-medium">${p}%</span>`; legendEl.appendChild(li); });
+                renderIncomeLegend(legendEl, summary, totalAmount, colors);
             } else {
-                renderExpenseTreeLegend(legendEl, transactions, summaryByParent, totalAmount, colors);
+                renderExpenseTreeLegend(legendEl, transactions, totalAmount, colors);
             }
         }
+
+        function renderIncomeLegend(legendEl, summary, totalAmount, colors) {
+            legendEl.innerHTML = '';
+            Object.entries(summary).forEach(([label, amount], i) => {
+                const p = totalAmount > 0 ? ((amount / totalAmount) * 100).toFixed(1) : 0;
+                const amountText = amount.toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                const li = document.createElement('li');
+                li.innerHTML = `<div class="legend-color-box" style="background-color: ${colors[i % colors.length]}"></div><span class="flex-grow">${label}</span><span class="font-medium text-right">${amountText} | ${p}%</span>`;
+                legendEl.appendChild(li);
+            });
+        }
         
-        function renderExpenseTreeLegend(legendEl, transactions, summaryByParent, totalAmount, colors) {
+        function renderExpenseTreeLegend(legendEl, transactions, totalAmount, colors) {
             legendEl.innerHTML = '';
             let colorIndex = 0;
+            const summaryByParent = transactions.reduce((acc, t) => { const parentCat = findParentCategory(t.category, 'รายจ่าย'); acc[parentCat] = (acc[parentCat] || 0) + t.amount; return acc; }, {});
+
             state.expenseCategories.forEach(parentCat => {
                 const parentTotal = summaryByParent[parentCat.name] || 0;
                 if (parentTotal === 0) return;
@@ -751,8 +813,9 @@
                 const parentItem = document.createElement('div');
                 parentItem.className = 'parent-item';
                 
+                const parentAmountText = parentTotal.toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
                 const parentPercent = totalAmount > 0 ? (parentTotal / totalAmount * 100).toFixed(1) : 0;
-                parentItem.innerHTML = `<div class="flex items-center"><div class="legend-color-box" style="background-color: ${parentColor}"></div><span class="flex-grow font-semibold">${parentCat.name}</span><span class="font-medium">${parentPercent}%</span></div>`;
+                parentItem.innerHTML = `<div class="flex items-center"><div class="legend-color-box" style="background-color: ${parentColor}"></div><span class="flex-grow font-semibold">${parentCat.name}</span><span class="font-medium text-right">${parentAmountText} | ${parentPercent}%</span></div>`;
                 
                 if (parentCat.sub && parentCat.sub.length > 0) {
                     const subList = document.createElement('div');
@@ -761,10 +824,11 @@
                     parentCat.sub.forEach(subCatName => {
                         const subTotal = transactions.filter(t => t.category === subCatName).reduce((sum, t) => sum + t.amount, 0);
                         if (subTotal > 0) {
+                            const subAmountText = subTotal.toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
                             const subPercent = totalAmount > 0 ? (subTotal / totalAmount * 100).toFixed(1) : 0;
                             const subItem = document.createElement('div');
                             subItem.className = 'sub-item flex items-center';
-                            subItem.innerHTML = `<span class="flex-grow text-gray-600">${subCatName}</span><span class="text-gray-600">${subPercent}%</span>`;
+                            subItem.innerHTML = `<span class="flex-grow text-gray-600">${subCatName}</span><span class="text-gray-600 text-right">${subAmountText} | ${subPercent}%</span>`;
                             subList.appendChild(subItem);
                         }
                     });
@@ -1076,7 +1140,7 @@
 
             const sorted = transactions.sort((a, b) => b.timestamp - a.timestamp);
             const grouped = sorted.reduce((acc, t) => {
-                const dateKey = t.timestamp.toLocaleDateString('en-CA'); // YYYY-MM-DD
+                const dateKey = t.timestamp.toLocaleDateString('en-CA'); // yyyy-MM-dd
                 if (!acc[dateKey]) {
                     acc[dateKey] = [];
                 }
@@ -1106,7 +1170,7 @@
                 const editButton = document.createElement('button');
                 editButton.className = 'p-1 rounded-full hover:bg-gray-600';
                 editButton.dataset.action = 'toggle-edit';
-                editButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`;
+                editButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`;
 
                 dateHeaderContainer.appendChild(dateHeaderText);
                 dateHeaderContainer.appendChild(editButton);
