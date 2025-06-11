@@ -169,10 +169,10 @@
             width: 1rem; /* Length of the horizontal line */
             border-bottom: 2px dotted #d1d5db;
         }
-        .delete-btn {
+        .edit-item-btn, .delete-btn {
             display: none; /* Hidden by default */
         }
-        .is-editing .delete-btn {
+        .is-editing .edit-item-btn, .is-editing .delete-btn {
             display: inline-flex; /* Show when parent has .is-editing */
         }
     </style>
@@ -423,11 +423,11 @@
                 
                 state.allTransactions = data.transactions.map(t => ({
                     timestamp: new Date(t.Timestamp),
-                    type: t.Type,
-                    category: t.Category,
-                    amount: t.Amount,
-                    account: t.Account,
-                    details: t.Details
+                    type: t.Type || '',
+                    category: t.Category || '',
+                    amount: parseFloat(t.Amount) || 0,
+                    account: t.Account || '',
+                    details: t.Details || ''
                 }));
 
                 if (data.settings) {
@@ -454,7 +454,7 @@
         }
         
         function setupEventListeners() {
-            DOMElements.addTransactionBtn.addEventListener('click', showTransactionForm);
+            DOMElements.addTransactionBtn.addEventListener('click', () => showTransactionForm());
             DOMElements.settingsBtn.addEventListener('click', showSettings);
 
             // Main Tab Listeners
@@ -488,10 +488,17 @@
             DOMElements.transactionListContainer.addEventListener('click', (e) => {
                 const editButton = e.target.closest('[data-action="toggle-edit"]');
                 const deleteButton = e.target.closest('.delete-btn');
+                const editItemButton = e.target.closest('.edit-item-btn');
 
                 if (editButton) {
                     const dayGroup = editButton.closest('.day-group-container');
                     dayGroup.classList.toggle('is-editing');
+                }
+                
+                if(editItemButton) {
+                    const transactionData = JSON.parse(editItemButton.dataset.transaction);
+                    transactionData.timestamp = new Date(transactionData.timestamp); 
+                    showTransactionForm(transactionData);
                 }
 
                 if(deleteButton) {
@@ -593,13 +600,15 @@
             }
         }
         
-        async function handleSaveTransaction(data) {
+        async function handleSaveTransaction(data, originalData = null) {
             Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
             try {
-                await apiPost({
-                    action: 'save_transaction',
-                    data: data
-                });
+                const action = originalData ? 'edit_transaction' : 'save_transaction';
+                const payload = {
+                    action: action,
+                    data: originalData ? { newData: data, originalData: originalData } : data
+                };
+                await apiPost(payload);
                 Swal.fire('สำเร็จ!', 'บันทึกรายการเรียบร้อย', 'success');
                 initializeApp();
             } catch (error) {
@@ -940,7 +949,8 @@
             });
         }
 
-        async function showTransactionForm() {
+        async function showTransactionForm(originalData = null) {
+            const isEditMode = originalData !== null;
             const formHtml = `
                 <div id="swal-form-container" class="p-4">
                     <div class="flex justify-center mb-6">
@@ -951,18 +961,18 @@
                         </div>
                     </div>
                     <form id="swal-transaction-form" class="space-y-4 text-left">
-                        <input type="hidden" id="swal-transaction-type" value="รายรับ">
-                        <div><label for="swal-amount" class="font-medium text-gray-600">จำนวนเงิน</label><input type="number" id="swal-amount" class="k-input mt-1" placeholder="0.00" required></div>
+                        <input type="hidden" id="swal-transaction-type" value="${isEditMode ? originalData.type : 'รายรับ'}">
+                        <div><label for="swal-amount" class="font-medium text-gray-600">จำนวนเงิน</label><input type="number" id="swal-amount" class="k-input mt-1" placeholder="0.00" value="${isEditMode ? originalData.amount : ''}" required></div>
                         <div><label for="swal-category" class="font-medium text-gray-600">หมวดหมู่</label><select id="swal-category" class="k-select mt-1 k-input" required></select></div>
                         <div><label for="swal-account" class="font-medium text-gray-600">บัญชี</label><select id="swal-account" class="k-select mt-1 k-input" required></select></div>
                         <div><label for="swal-datetime" class="font-medium text-gray-600">วัน-เวลา</label><input type="text" id="swal-datetime" class="k-input mt-1" placeholder="เลือกวันและเวลา" required></div>
-                        <div><label for="swal-details" class="font-medium text-gray-600">รายละเอียด (ไม่บังคับ)</label><textarea id="swal-details" class="k-input mt-1" rows="3" placeholder="เช่น ซื้อวัตถุดิบเข้าร้าน"></textarea></div>
+                        <div><label for="swal-details" class="font-medium text-gray-600">รายละเอียด (ไม่บังคับ)</label><textarea id="swal-details" class="k-input mt-1" rows="3" placeholder="เช่น ซื้อวัตถุดิบเข้าร้าน">${isEditMode ? originalData.details : ''}</textarea></div>
                     </form>
                 </div>
             `;
 
             const { value: formValues } = await Swal.fire({
-                title: 'บันทึกรายการ',
+                title: isEditMode ? 'แก้ไขรายการ' : 'บันทึกรายการ',
                 html: formHtml,
                 width: '90%',
                 maxWidth: '500px',
@@ -971,7 +981,8 @@
                 cancelButtonText: 'ยกเลิก',
                 didOpen: () => {
                     const popup = Swal.getPopup();
-                    flatpickr(popup.querySelector('#swal-datetime'), { enableTime: true, dateFormat: "Y-m-d H:i", defaultDate: new Date(), locale: "th" });
+                    const datetimeInput = popup.querySelector('#swal-datetime');
+                    flatpickr(datetimeInput, { enableTime: true, dateFormat: "Y-m-d H:i", defaultDate: isEditMode ? new Date(originalData.timestamp) : new Date(), locale: "th" });
 
                     const incomeTab = popup.querySelector('#swal-income-tab');
                     const expenseTab = popup.querySelector('#swal-expense-tab');
@@ -979,7 +990,7 @@
                     const typeInput = popup.querySelector('#swal-transaction-type');
                     const categorySelect = popup.querySelector('#swal-category');
                     const accountSelect = popup.querySelector('#swal-account');
-
+                    
                     const updateTabs = (type) => {
                         state.currentTab = type;
                         const isIncome = type === 'รายรับ';
@@ -991,13 +1002,21 @@
                         
                         const categories = isIncome ? state.incomeCategories : state.expenseCategories;
                         populateCategorySelect(categorySelect, categories);
+                        if (isEditMode && type === originalData.type) {
+                            categorySelect.value = originalData.category;
+                        }
                     };
 
                     incomeTab.addEventListener('click', () => updateTabs('รายรับ'));
                     expenseTab.addEventListener('click', () => updateTabs('รายจ่าย'));
-
-                    populateCategorySelect(categorySelect, state.incomeCategories);
+                    
                     populateSelect(accountSelect, state.accounts);
+                    if (isEditMode) {
+                        accountSelect.value = originalData.account;
+                        updateTabs(originalData.type);
+                    } else {
+                        updateTabs('รายรับ');
+                    }
                 },
                 preConfirm: () => {
                     const amount = Swal.getPopup().querySelector('#swal-amount').value;
@@ -1017,7 +1036,8 @@
             });
 
             if (formValues) {
-                handleSaveTransaction(formValues);
+                const originalId = isEditMode ? { timestamp: originalData.timestamp.toISOString(), amount: originalData.amount, category: originalData.category } : null;
+                handleSaveTransaction(formValues, originalId);
             }
         }
 
@@ -1117,7 +1137,7 @@
 
             const sorted = transactions.sort((a, b) => b.timestamp - a.timestamp);
             const grouped = sorted.reduce((acc, t) => {
-                const dateKey = t.timestamp.toLocaleDateString('en-CA'); // admi-MM-dd
+                const dateKey = t.timestamp.toLocaleDateString('en-CA'); // yyyy-MM-dd
                 if (!acc[dateKey]) {
                     acc[dateKey] = [];
                 }
@@ -1174,7 +1194,7 @@
                     }
                     
                     const rightCol = document.createElement('div');
-                    rightCol.className = 'flex items-center space-x-4';
+                    rightCol.className = 'flex items-center space-x-2';
 
                     const amountContainer = document.createElement('div');
                     amountContainer.className = 'text-right';
@@ -1186,14 +1206,19 @@
 
                     const amountEl = document.createElement('p');
                     amountEl.className = 'font-bold text-lg';
-                    if (t.type === 'รายรับ' && typeof t.amount === 'number') {
+                    if (t.type === 'รายรับ') {
                         amountEl.classList.add('text-cyan-500');
-                        amountEl.textContent = `+${t.amount.toLocaleString('th-TH')}`;
-                    } else if (typeof t.amount === 'number') {
+                        amountEl.textContent = `+${(t.amount || 0).toLocaleString('th-TH')}`;
+                    } else {
                         amountEl.classList.add('text-red-700');
-                        amountEl.textContent = `-${t.amount.toLocaleString('th-TH')}`;
+                        amountEl.textContent = `-${(t.amount || 0).toLocaleString('th-TH')}`;
                     }
                     amountContainer.appendChild(amountEl);
+
+                    const editItemBtn = document.createElement('button');
+                    editItemBtn.className = 'edit-item-btn p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-100 rounded-full';
+                    editItemBtn.dataset.transaction = JSON.stringify(t); // Store transaction data
+                    editItemBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
 
                     const deleteBtn = document.createElement('button');
                     deleteBtn.className = 'delete-btn p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-100 rounded-full';
@@ -1203,6 +1228,7 @@
                     deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
 
                     rightCol.appendChild(amountContainer);
+                    rightCol.appendChild(editItemBtn);
                     rightCol.appendChild(deleteBtn);
                     
                     item.appendChild(leftCol);
