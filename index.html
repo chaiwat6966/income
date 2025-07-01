@@ -279,6 +279,15 @@
                     <div class="chart-container"><canvas id="dailyChart"></canvas></div>
                     <div id="daily-summary" class="mt-4 text-center text-sm text-gray-500"></div>
                 </div>
+                <!-- Daily Sales Comparison Chart -->
+                <div class="k-card">
+                    <div class="chart-nav">
+                        <button id="prev-month-comp-btn" class="chart-nav-btn">&lt;</button>
+                        <h3 id="daily-comp-chart-title" class="chart-title">เปรียบเทียบยอดขายรายวัน</h3>
+                        <button id="next-month-comp-btn" class="chart-nav-btn">&gt;</button>
+                    </div>
+                    <div class="chart-container"><canvas id="dailyComparisonChart"></canvas></div>
+                </div>
                 <div class="k-card">
                      <div class="chart-nav">
                         <button id="prev-year-btn" class="chart-nav-btn">&lt;</button>
@@ -373,6 +382,10 @@
             viewDashboard: document.getElementById('view-dashboard'),
             viewTransactions: document.getElementById('view-transactions'),
             transactionListContainer: document.getElementById('transaction-list-container'),
+            dailyComparisonChart: document.getElementById('dailyComparisonChart'),
+            dailyCompChartTitle: document.getElementById('daily-comp-chart-title'),
+            prevMonthCompBtn: document.getElementById('prev-month-comp-btn'),
+            nextMonthCompBtn: document.getElementById('next-month-comp-btn'),
         };
         
         // --- INITIALIZATION ---
@@ -525,6 +538,8 @@
 
             DOMElements.prevMonthBtn.addEventListener('click', () => updateDisplayMonth(-1));
             DOMElements.nextMonthBtn.addEventListener('click', () => updateDisplayMonth(1));
+            DOMElements.prevMonthCompBtn.addEventListener('click', () => updateDisplayMonth(-1));
+            DOMElements.nextMonthCompBtn.addEventListener('click', () => updateDisplayMonth(1));
             
             const yearNavHandler = (change) => {
                 state.displayYear += change;
@@ -551,6 +566,7 @@
         function updateDisplayMonth(change) {
             state.displayDate.setMonth(state.displayDate.getMonth() + change);
             renderDailyChart();
+            renderDailyComparisonChart();
         }
 
         // --- DATA FETCHING & SAVING ---
@@ -635,6 +651,7 @@
             updateDashboardCards();
             renderDoughnutCharts();
             renderDailyChart();
+            renderDailyComparisonChart();
             renderMonthlyChart();
             renderYearlyChart();
             renderTransactionList();
@@ -862,6 +879,79 @@
             });
         }
         
+        function renderDailyComparisonChart() {
+            destroyChart('dailyComparison');
+            const canvas = DOMElements.dailyComparisonChart;
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            const currentMonthDate = state.displayDate;
+            const prevMonthDate = new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth() - 1, 1);
+            
+            DOMElements.dailyCompChartTitle.textContent = `เปรียบเทียบยอดขาย (${THAI_MONTHS[prevMonthDate.getMonth()]} vs ${THAI_MONTHS[currentMonthDate.getMonth()]})`;
+
+            const labels = Array.from({ length: 31 }, (_, i) => i + 1);
+
+            const getDataForMonth = (date) => {
+                const year = date.getFullYear();
+                const month = date.getMonth();
+                const monthlyTransactions = state.allTransactions.filter(t => t.type === 'รายรับ' && t.timestamp.getFullYear() === year && t.timestamp.getMonth() === month);
+                const dailyData = Array(31).fill(0);
+                monthlyTransactions.forEach(t => {
+                    const day = t.timestamp.getDate() - 1;
+                    dailyData[day] += t.amount;
+                });
+                return dailyData;
+            };
+
+            const currentMonthData = getDataForMonth(currentMonthDate);
+            const prevMonthData = getDataForMonth(prevMonthDate);
+
+            const prevMonthGradient = ctx.createLinearGradient(0, 0, 0, 300);
+            prevMonthGradient.addColorStop(0, 'rgba(156, 163, 175, 0.4)');
+            prevMonthGradient.addColorStop(1, 'rgba(156, 163, 175, 0)');
+
+            const currentMonthGradient = ctx.createLinearGradient(0, 0, 0, 300);
+            currentMonthGradient.addColorStop(0, 'rgba(59, 130, 246, 0.4)');
+            currentMonthGradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+
+            state.charts.dailyComparison = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: `เดือนก่อนหน้า (${THAI_MONTHS[prevMonthDate.getMonth()]})`,
+                            data: prevMonthData,
+                            borderColor: 'rgba(156, 163, 175, 0.8)',
+                            backgroundColor: prevMonthGradient,
+                            fill: true,
+                            tension: 0.4,
+                        },
+                        {
+                            label: `เดือนปัจจุบัน (${THAI_MONTHS[currentMonthDate.getMonth()]})`,
+                            data: currentMonthData,
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            backgroundColor: currentMonthGradient,
+                            fill: true,
+                            tension: 0.4,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { title: { display: true, text: 'วันที่' } },
+                        y: { beginAtZero: true, title: { display: true, text: 'ยอดขาย' } }
+                    },
+                    plugins: {
+                        tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${formatCurrency(c.raw)}` } }
+                    }
+                }
+            });
+        }
+
         function renderMonthlyChart() {
             destroyChart('monthly');
             const year = state.displayYear;
