@@ -851,6 +851,10 @@
         
         function renderDailyChart() {
             destroyChart('daily');
+            const canvas = document.getElementById('dailyChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
             const year = state.displayDate.getFullYear();
             const month = state.displayDate.getMonth();
             DOMElements.dailyChartTitle.textContent = `สรุปรายรับ-รายจ่าย ประจำเดือน ${THAI_MONTHS[month]} ${year + 543}`;
@@ -868,11 +872,19 @@
             const expenseCount = transactionsInMonth.filter(t => t.type === 'รายจ่าย').length;
             DOMElements.dailySummaryEl.innerHTML = `<span class="text-green-600">จำนวนรายการรับ: ${incomeCount}</span> | <span class="text-red-600">จำนวนรายการจ่าย: ${expenseCount}</span>`;
 
-            state.charts.daily = new Chart(document.getElementById('dailyChart').getContext('2d'), {
+            const incomeGradient = ctx.createLinearGradient(0, 0, 0, 300);
+            incomeGradient.addColorStop(0, 'rgba(251, 190, 36, 0.6)');
+            incomeGradient.addColorStop(1, 'rgba(251, 190, 36, 0)');
+
+            const expenseGradient = ctx.createLinearGradient(0, 0, 0, 300);
+            expenseGradient.addColorStop(0, 'rgba(244, 114, 182, 0.6)');
+            expenseGradient.addColorStop(1, 'rgba(244, 114, 182, 0)');
+
+            state.charts.daily = new Chart(ctx, {
                 type: 'line',
                 data: { labels: labels, datasets: [
-                    { label: 'รายรับ', data: dailyData.map(d => d.income), borderColor: '#FBBE24', backgroundColor: '#FBBE24', tension: 0.3, fill: false },
-                    { label: 'รายจ่าย', data: dailyData.map(d => d.expense), borderColor: '#F472B6', backgroundColor: '#F472B6', tension: 0.3, fill: false }
+                    { label: 'รายรับ', data: dailyData.map(d => d.income), borderColor: '#FBBE24', backgroundColor: incomeGradient, tension: 0.4, fill: true },
+                    { label: 'รายจ่าย', data: dailyData.map(d => d.expense), borderColor: '#F472B6', backgroundColor: expenseGradient, tension: 0.4, fill: true }
                 ]},
                 options: { responsive: true, maintainAspectRatio: false,
                     scales: {
@@ -913,12 +925,12 @@
             const prevMonthData = getDataForMonth(prevMonthDate);
 
             const prevMonthGradient = ctx.createLinearGradient(0, 0, 0, 300);
-            prevMonthGradient.addColorStop(0, 'rgba(156, 163, 175, 0.4)');
-            prevMonthGradient.addColorStop(1, 'rgba(156, 163, 175, 0)');
+            prevMonthGradient.addColorStop(0, 'rgba(251, 191, 36, 0.4)');
+            prevMonthGradient.addColorStop(1, 'rgba(251, 191, 36, 0)');
 
             const currentMonthGradient = ctx.createLinearGradient(0, 0, 0, 300);
-            currentMonthGradient.addColorStop(0, 'rgba(59, 130, 246, 0.4)');
-            currentMonthGradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+            currentMonthGradient.addColorStop(0, 'rgba(20, 184, 166, 0.4)');
+            currentMonthGradient.addColorStop(1, 'rgba(20, 184, 166, 0)');
 
             state.charts.dailyComparison = new Chart(ctx, {
                 type: 'line',
@@ -928,7 +940,7 @@
                         {
                             label: `เดือนก่อนหน้า (${THAI_MONTHS[prevMonthDate.getMonth()]})`,
                             data: prevMonthData,
-                            borderColor: 'rgba(156, 163, 175, 0.8)',
+                            borderColor: 'rgba(251, 191, 36, 0.8)',
                             backgroundColor: prevMonthGradient,
                             fill: true,
                             tension: 0.4,
@@ -936,7 +948,7 @@
                         {
                             label: `เดือนปัจจุบัน (${THAI_MONTHS[currentMonthDate.getMonth()]})`,
                             data: currentMonthData,
-                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderColor: 'rgba(20, 184, 166, 1)',
                             backgroundColor: currentMonthGradient,
                             fill: true,
                             tension: 0.4,
