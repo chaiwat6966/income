@@ -348,6 +348,7 @@
             allTransactions: [],
             charts: {},
             displayDate: new Date(),
+            comparisonDate: new Date(),
             displayYear: new Date().getFullYear(),
             dashboardPeriod: 'day',
             doughnutPeriod: 'year',
@@ -538,8 +539,8 @@
 
             DOMElements.prevMonthBtn.addEventListener('click', () => updateDisplayMonth(-1));
             DOMElements.nextMonthBtn.addEventListener('click', () => updateDisplayMonth(1));
-            DOMElements.prevMonthCompBtn.addEventListener('click', () => updateDisplayMonth(-1));
-            DOMElements.nextMonthCompBtn.addEventListener('click', () => updateDisplayMonth(1));
+            DOMElements.prevMonthCompBtn.addEventListener('click', () => updateComparisonMonth(-1));
+            DOMElements.nextMonthCompBtn.addEventListener('click', () => updateComparisonMonth(1));
             
             const yearNavHandler = (change) => {
                 state.displayYear += change;
@@ -566,6 +567,10 @@
         function updateDisplayMonth(change) {
             state.displayDate.setMonth(state.displayDate.getMonth() + change);
             renderDailyChart();
+        }
+
+        function updateComparisonMonth(change) {
+            state.comparisonDate.setMonth(state.comparisonDate.getMonth() + change);
             renderDailyComparisonChart();
         }
 
@@ -885,7 +890,7 @@
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
 
-            const currentMonthDate = state.displayDate;
+            const currentMonthDate = state.comparisonDate;
             const prevMonthDate = new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth() - 1, 1);
             
             DOMElements.dailyCompChartTitle.textContent = `เปรียบเทียบยอดขาย (${THAI_MONTHS[prevMonthDate.getMonth()]} vs ${THAI_MONTHS[currentMonthDate.getMonth()]})`;
